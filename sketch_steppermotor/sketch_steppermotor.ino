@@ -1,36 +1,34 @@
-//void setup() {
-//  // put your setup code here, to run once:
-//pinMode(13, OUTPUT);
-//}
-//
-//void loop() {
-//  // put your main code here, to run repeatedly:
-//  digitalWrite(13,HIGH);
-//  delay(100);
-//  digitalWrite(13,LOW);
-//  delay(100);
-//
-//}
+#include <SPI.h>
 
 // testing a stepper motor with a Pololu A4988 driver board or equivalent
 // on an Uno the onboard led will flash with each step
 // this version uses delay() to manage timing
 
+//Y axis
 byte directionPin = 49;
 byte enablePin = 28;
 byte stepPin = 36;
-int numberOfSteps = 100;
+int numberOfSteps = 5000;
 byte ledPin = 13;
-int pulseWidthMicros = 20;  // microseconds
-int millisbetweenSteps = 15; // milliseconds
-byte MS1 = 15; //analog
+int pulseHigh = 200;  // microseconds
+int pulseLow = 5; // microseconds
+byte MS1 = 69; //analog
 byte MS2 = 39;
+int slaveSelectPin = 38;
+int yAxisDigiPot = 5;
+int upTime = 1; //sec
+int platTime = 4; //sec
 
 void setup() {
 
-//  Serial.begin(9600);
-//  Serial.println("Starting StepperTest");
-
+  pinMode(slaveSelectPin, OUTPUT);
+  SPI.begin();
+  digitalWrite(slaveSelectPin, LOW);
+  SPI.transfer(yAxisDigiPot);
+  SPI.transfer(150);
+  digitalWrite(slaveSelectPin, HIGH);
+  Serial.begin(9600);
+  Serial.println("Starting StepperTest");
   delay(2000);
 
   pinMode(directionPin, OUTPUT);
@@ -40,20 +38,33 @@ void setup() {
   pinMode(MS1, OUTPUT);
   pinMode(MS2, OUTPUT);
 
-  analogWrite(MS1, 0);
+  digitalWrite(MS1, LOW);
   digitalWrite(MS2, LOW);
 
   digitalWrite(enablePin, LOW);
   digitalWrite(ledPin, LOW);
   digitalWrite(directionPin, HIGH);
 
-  
-  for (int n = 0; n < numberOfSteps; n++) {
+  int upSteps = 1000000*upTime/(pulseHigh+pulseLow);
+  float pulseHighDec = (550.0 - pulseHigh)/upSteps;
+  float pulseLowDec = (100.0 - pulseLow)/upSteps;
+
+  for (int n = upSteps; n > 0; n--){
     digitalWrite(stepPin, HIGH);
-    delayMicroseconds(pulseWidthMicros); // this line is probably unnecessary
+    delayMicroseconds(pulseHigh+pulseHighDec*n);
     digitalWrite(stepPin, LOW);
 
-    delay(millisbetweenSteps);
+    delayMicroseconds(pulseLow+pulseLowDec*n);
+
+    digitalWrite(ledPin, !digitalRead(ledPin));
+  }
+  long platSteps = 1000000*platTime/(pulseHigh+pulseLow);
+  for (long n = 0; n < platSteps; n++) {
+    digitalWrite(stepPin, HIGH);
+    delayMicroseconds(pulseHigh);
+    digitalWrite(stepPin, LOW);
+
+    delayMicroseconds(pulseLow);
 
     digitalWrite(ledPin, !digitalRead(ledPin));
   }
@@ -61,16 +72,16 @@ void setup() {
   delay(3000);
 
 
-  digitalWrite(directionPin, LOW);
-  for (int n = 0; n < numberOfSteps; n++) {
-    digitalWrite(stepPin, HIGH);
-    // delayMicroseconds(pulseWidthMicros); // probably not needed
-    digitalWrite(stepPin, LOW);
-
-    delay(millisbetweenSteps);
-
-    digitalWrite(ledPin, !digitalRead(ledPin));
-  }
+//  digitalWrite(directionPin, LOW);
+//  for (int n = 0; n < numberOfSteps; n++) {
+//    digitalWrite(stepPin, HIGH);
+//    delayMicroseconds(pulseWidthMicros);
+//    digitalWrite(stepPin, LOW);
+//
+//    delay(millisbetweenSteps);
+//
+//    digitalWrite(ledPin, !digitalRead(ledPin));
+//  }
 }
 
 void loop() {
