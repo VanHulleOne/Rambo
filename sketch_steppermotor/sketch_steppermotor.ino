@@ -8,7 +8,7 @@
 byte directionPin = 49;
 byte enablePin = 28;
 byte stepPin = 36;
-int numberOfSteps = 5000;
+int numberOfSteps = 2000;
 byte ledPin = 13;
 int pulseHigh = 200;  // microseconds
 int pulseLow = 5; // microseconds
@@ -16,7 +16,7 @@ byte MS1 = 69; //analog
 byte MS2 = 39;
 int slaveSelectPin = 38;
 int yAxisDigiPot = 5;
-int upTime = 1; //sec
+float upTime = 0.5; //sec
 int platTime = 4; //sec
 
 void setup() {
@@ -45,10 +45,11 @@ void setup() {
   digitalWrite(ledPin, LOW);
   digitalWrite(directionPin, HIGH);
 
-  int upSteps = 1000000*upTime/(pulseHigh+pulseLow);
-  float pulseHighDec = (550.0 - pulseHigh)/upSteps;
+//  int upSteps = 1000000.0*upTime/(pulseHigh+pulseLow);
+  float pulseHighDec = 0.5;// (550.0 - pulseHigh)/upSteps;
+  int upSteps = (550-pulseHigh)/pulseHighDec;
   float pulseLowDec = (100.0 - pulseLow)/upSteps;
-
+  Serial.println(pulseLowDec);
   for (int n = upSteps; n > 0; n--){
     digitalWrite(stepPin, HIGH);
     delayMicroseconds(pulseHigh+pulseHighDec*n);
