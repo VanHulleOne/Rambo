@@ -18,72 +18,69 @@ int slaveSelectPin = 38;
 int yAxisDigiPot = 5;
 float upTime = 0.5; //sec
 int platTime = 4; //sec
+int thermNozzle = 0;
 
 void setup() {
-
-  pinMode(slaveSelectPin, OUTPUT);
-  SPI.begin();
-  digitalWrite(slaveSelectPin, LOW);
-  SPI.transfer(yAxisDigiPot);
-  SPI.transfer(150);
-  digitalWrite(slaveSelectPin, HIGH);
+  pinMode(13, OUTPUT);
   Serial.begin(9600);
-  Serial.println("Starting StepperTest");
-  delay(2000);
 
-  pinMode(directionPin, OUTPUT);
-  pinMode(stepPin, OUTPUT);
-  pinMode(ledPin, OUTPUT);
-  pinMode(enablePin, OUTPUT);
-  pinMode(MS1, OUTPUT);
-  pinMode(MS2, OUTPUT);
-
-  digitalWrite(MS1, LOW);
-  digitalWrite(MS2, LOW);
-
-  digitalWrite(enablePin, LOW);
-  digitalWrite(ledPin, LOW);
-  digitalWrite(directionPin, HIGH);
-
-//  int upSteps = 1000000.0*upTime/(pulseHigh+pulseLow);
-  float pulseHighDec = 0.5;// (550.0 - pulseHigh)/upSteps;
-  int upSteps = (550-pulseHigh)/pulseHighDec;
-  float pulseLowDec = (100.0 - pulseLow)/upSteps;
-  Serial.println(pulseLowDec);
-  for (int n = upSteps; n > 0; n--){
-    digitalWrite(stepPin, HIGH);
-    delayMicroseconds(pulseHigh+pulseHighDec*n);
-    digitalWrite(stepPin, LOW);
-
-    delayMicroseconds(pulseLow+pulseLowDec*n);
-
-    digitalWrite(ledPin, !digitalRead(ledPin));
-  }
-  long platSteps = 1000000*platTime/(pulseHigh+pulseLow);
-  for (long n = 0; n < platSteps; n++) {
-    digitalWrite(stepPin, HIGH);
-    delayMicroseconds(pulseHigh);
-    digitalWrite(stepPin, LOW);
-
-    delayMicroseconds(pulseLow);
-
-    digitalWrite(ledPin, !digitalRead(ledPin));
-  }
-
-  delay(3000);
-
-
-//  digitalWrite(directionPin, LOW);
-//  for (int n = 0; n < numberOfSteps; n++) {
+//  pinMode(slaveSelectPin, OUTPUT);
+//  SPI.begin();
+//  digitalWrite(slaveSelectPin, LOW);
+//  SPI.transfer(yAxisDigiPot);
+//  SPI.transfer(150);
+//  digitalWrite(slaveSelectPin, HIGH);
+//  Serial.begin(9600);
+//  Serial.println("Starting StepperTest");
+//  delay(2000);
+//
+//  pinMode(directionPin, OUTPUT);
+//  pinMode(stepPin, OUTPUT);
+//  pinMode(ledPin, OUTPUT);
+//  pinMode(enablePin, OUTPUT);
+//  pinMode(MS1, OUTPUT);
+//  pinMode(MS2, OUTPUT);
+//
+//  digitalWrite(MS1, LOW);
+//  digitalWrite(MS2, LOW);
+//
+//  digitalWrite(enablePin, LOW);
+//  digitalWrite(ledPin, LOW);
+//  digitalWrite(directionPin, HIGH);
+//
+////  int upSteps = 1000000.0*upTime/(pulseHigh+pulseLow);
+//  float pulseHighDec = 0.5;// (550.0 - pulseHigh)/upSteps;
+//  int upSteps = (550-pulseHigh)/pulseHighDec;
+//  float pulseLowDec = (100.0 - pulseLow)/upSteps;
+//  Serial.println(pulseLowDec);
+//  for (int n = upSteps; n > 0; n--){
 //    digitalWrite(stepPin, HIGH);
-//    delayMicroseconds(pulseWidthMicros);
+//    delayMicroseconds(pulseHigh+pulseHighDec*n);
 //    digitalWrite(stepPin, LOW);
 //
-//    delay(millisbetweenSteps);
+//    delayMicroseconds(pulseLow+pulseLowDec*n);
 //
 //    digitalWrite(ledPin, !digitalRead(ledPin));
 //  }
+//  long platSteps = 1000000*platTime/(pulseHigh+pulseLow);
+//  for (long n = 0; n < platSteps; n++) {
+//    digitalWrite(stepPin, HIGH);
+//    delayMicroseconds(pulseHigh);
+//    digitalWrite(stepPin, LOW);
+//
+//    delayMicroseconds(pulseLow);
+//
+//    digitalWrite(ledPin, !digitalRead(ledPin));
+//  }
+//
+//  delay(3000);
+
 }
 
 void loop() {
+  digitalWrite(13, HIGH);
+  Serial.println(analogRead(thermNozzle));
+  delay(100);
+  digitalWrite(13, LOW);
+  delay(50);
 }
