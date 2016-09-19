@@ -1,4 +1,5 @@
 #include <SPI.h>
+#include <math.h>
 
 // testing a stepper motor with a Pololu A4988 driver board or equivalent
 // on an Uno the onboard led will flash with each step
@@ -19,9 +20,15 @@ int yAxisDigiPot = 5;
 float upTime = 0.5; //sec
 int platTime = 4; //sec
 int thermNozzle = 0;
-
+int fan0 = 8;
+const int BETA = 4267;
+const float R_ZERO = 100000.0;
+const float TO_VOLTS = 5.0/1024.0;
+const float R_INF = R_ZERO*exp(1.0*-BETA/298.0);
 void setup() {
   pinMode(13, OUTPUT);
+  pinMode(fan0, OUTPUT);
+  analogWrite(fan0, 0);
   Serial.begin(9600);
 
 //  pinMode(slaveSelectPin, OUTPUT);
@@ -79,8 +86,18 @@ void setup() {
 
 void loop() {
   digitalWrite(13, HIGH);
+//  float resistance = 4700.0*5.0/(1.0*analogRead(thermNozzle)*TO_VOLTS)-4700;
+  float resistance = 4700.0*1.0/(5/(1.0*analogRead(thermNozzle)*TO_VOLTS)-1);
+  String tov = "To Volts: " + String(TO_VOLTS, 9);
+  String res = "Resist: " + String(resistance);
+  String rinf = "R_INF: " + String(R_INF, 9);
+  Serial.println(tov);
+  Serial.println(res);
+  Serial.println(rinf);
+  float temp = BETA/log(resistance/R_INF)-273.15;
   Serial.println(analogRead(thermNozzle));
-  delay(100);
+  Serial.println(temp);
+  delay(1000);
   digitalWrite(13, LOW);
   delay(50);
 }
