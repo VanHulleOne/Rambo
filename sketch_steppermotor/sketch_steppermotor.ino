@@ -21,6 +21,8 @@ float upTime = 0.5; //sec
 int platTime = 4; //sec
 int thermNozzle = 0;
 int fan0 = 8;
+int fan2 = 2;
+int readySig = 70;
 const int BETA = 4267;
 const float R_ZERO = 100000.0;
 const float TO_VOLTS = 5.0/1024.0;
@@ -28,7 +30,12 @@ const float R_INF = R_ZERO*exp(1.0*-BETA/298.0);
 void setup() {
   pinMode(13, OUTPUT);
   pinMode(fan0, OUTPUT);
-  analogWrite(fan0, 0);
+  pinMode(fan2, OUTPUT);
+  pinMode(readySig, OUTPUT);
+
+  digitalWrite(readySig, HIGH);
+//  analogWrite(fan0, 255);
+//  analogWrite(fan2, 225);
   Serial.begin(9600);
 
 //  pinMode(slaveSelectPin, OUTPUT);
