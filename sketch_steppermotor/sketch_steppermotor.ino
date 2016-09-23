@@ -32,10 +32,11 @@ void setup() {
   pinMode(fan0, OUTPUT);
   pinMode(fan2, OUTPUT);
   pinMode(readySig, OUTPUT);
+  digitalWrite(fan2, LOW);
 
   digitalWrite(readySig, HIGH);
 //  analogWrite(fan0, 255);
-//  analogWrite(fan2, 225);
+//  analogWrite(fan2, 0);
   Serial.begin(9600);
 
 //  pinMode(slaveSelectPin, OUTPUT);
