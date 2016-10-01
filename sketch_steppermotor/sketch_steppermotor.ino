@@ -23,21 +23,37 @@ int thermNozzle = 0;
 int fan0 = 8;
 int fan2 = 2;
 int readySig = 70;
-const int BETA = 4267;
-const float R_ZERO = 100000.0;
-const float TO_VOLTS = 5.0/1024.0;
+const int BETA = 4092; // 4092 is the Beta for TDK 100k Epcos Therm #8304
+                        // 4267 is the Beta from the Semitec 104GT-2
+const float R_ZERO = 100000.0; // Resistance at 25C
+const float TO_VOLTS = 5.0/1024.0; // 5V board power / 1024 10bit range
 const float R_INF = R_ZERO*exp(1.0*-BETA/298.0);
+
+/* PID working variables*/
+int heat0 = 9; // Heater for extruder 0
+unsigned long lastTime;
+float Input, Output, Setpoint;
+float ITerm, lastInput;
+float kp, ki, kd;
+int SampleTime = 1000; //1 sec
+int outMin = 0; // The min output value, 0 is fully off
+int outMax = 255; // the max output value, 255 is the max for PWM
+
 void setup() {
   pinMode(13, OUTPUT);
   pinMode(fan0, OUTPUT);
   pinMode(fan2, OUTPUT);
   pinMode(readySig, OUTPUT);
+  pinMode(heat0, OUTPUT);
   digitalWrite(fan2, LOW);
+  Setpoint = 100;
 
   digitalWrite(readySig, HIGH);
 //  analogWrite(fan0, 255);
 //  analogWrite(fan2, 0);
   Serial.begin(9600);
+
+  SetTunings(50, 1, 9); // Sets the initial PID parameters
 
 //  pinMode(slaveSelectPin, OUTPUT);
 //  SPI.begin();
@@ -92,20 +108,56 @@ void setup() {
 
 }
 
-void loop() {
-  digitalWrite(13, HIGH);
-//  float resistance = 4700.0*5.0/(1.0*analogRead(thermNozzle)*TO_VOLTS)-4700;
-  float resistance = 4700.0*1.0/(5/(1.0*analogRead(thermNozzle)*TO_VOLTS)-1);
+void Compute()
+{
+  // if(!digitalRead(heatOnPin) return;
+  unsigned long now = millis();
+  int timeChange = (now - lastTime);
+  if(timeChange>=SampleTime)
+  {
+    Input = getCurrTemp();
+    /*Compute all the working error variables*/
+    double error = Setpoint - Input;
+    ITerm+= (ki * error);
+    if(ITerm > outMax) ITerm = outMax;
+    else if(ITerm < outMin) ITerm = outMin;
+    float dInput = (Input - lastInput);
+  
+    /*Compute PID Output*/
+    Output = kp * error + ITerm- kd * dInput;
+    if(Output > outMax) Output = outMax;
+    else if(Output < outMin) Output = outMin;
+
+    String out = "Output: " + String(Output);
+    Serial.println(out);
+    analogWrite(heat0, Output);
+  
+    /*Remember some variables for next time*/
+    lastInput = Input;
+    lastTime = now;
+  }
+}
+
+float getCurrTemp(){
+  float resistance = 4700.0/(5/(analogRead(thermNozzle)*TO_VOLTS)-1);
   String tov = "To Volts: " + String(TO_VOLTS, 9);
   String res = "Resist: " + String(resistance);
   String rinf = "R_INF: " + String(R_INF, 9);
-  Serial.println(tov);
   Serial.println(res);
-  Serial.println(rinf);
   float temp = BETA/log(resistance/R_INF)-273.15;
-  Serial.println(analogRead(thermNozzle));
-  Serial.println(temp);
-  delay(1000);
-  digitalWrite(13, LOW);
-  delay(50);
+  String tempString = "Temp: " + String(temp);
+  Serial.println(tempString);
+  return temp;
+}
+
+void SetTunings(double Kp, double Ki, double Kd)
+{ 
+  double SampleTimeInSec = ((double)SampleTime)/1000;
+  kp = Kp;
+  ki = Ki * SampleTimeInSec;
+  kd = Kd / SampleTimeInSec;
+}
+
+void loop() {
+  Compute();
 }
