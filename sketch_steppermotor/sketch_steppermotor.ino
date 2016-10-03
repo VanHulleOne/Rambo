@@ -23,7 +23,7 @@ int thermNozzle = 0;
 int fan0 = 8;
 int fan2 = 2;
 int readySig = 70;
-const int BETA = 4092; // 4092 is the Beta for TDK 100k Epcos Therm #8304
+const int BETA = 3950;//4092; // 4092 is the Beta for TDK 100k Epcos Therm #8304
                         // 4267 is the Beta from the Semitec 104GT-2
 const float R_ZERO = 100000.0; // Resistance at 25C
 const float TO_VOLTS = 5.0/1024.0; // 5V board power / 1024 10bit range
@@ -39,6 +39,8 @@ int SampleTime = 1000; //1 sec
 int outMin = 0; // The min output value, 0 is fully off
 int outMax = 255; // the max output value, 255 is the max for PWM
 
+String inString;
+
 void setup() {
   pinMode(13, OUTPUT);
   pinMode(fan0, OUTPUT);
@@ -53,7 +55,10 @@ void setup() {
 //  analogWrite(fan2, 0);
   Serial.begin(9600);
 
-  SetTunings(50, 1, 9); // Sets the initial PID parameters
+  while(! Serial);
+  Serial.println("Enter PWM Value");
+
+//  SetTunings(50, 1, 9); // Sets the initial PID parameters
 
 //  pinMode(slaveSelectPin, OUTPUT);
 //  SPI.begin();
@@ -146,7 +151,7 @@ float getCurrTemp(){
   Serial.println(res);
   float temp = BETA/log(resistance/R_INF)-273.15;
   String tempString = "Temp: " + String(temp);
-  Serial.println(tempString);
+//  Serial.println(tempString);
   return temp;
 }
 
@@ -159,5 +164,23 @@ void SetTunings(double Kp, double Ki, double Kd)
 }
 
 void loop() {
-  Compute();
+  while(Serial.available() > 0){
+    char inChar = Serial.read();
+    if(isDigit(inChar)){
+      inString += (char)inChar;
+    }
+    else{ // if(inChar == '\n'){
+      int pwm = inString.toInt();
+      Serial.print("PWM: ");
+      Serial.println(pwm);
+      analogWrite(heat0, pwm);
+      inString = "";
+    }
+  }
+  if (millis() - lastTime >= 2000){
+    Serial.print("Current Temp: ");
+    Serial.println(getCurrTemp());
+    lastTime = millis();
+  }
+//  Compute();
 }
