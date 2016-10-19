@@ -1,81 +1,6 @@
-
-class Heater{
-  int HEAT_PIN;  // The pin which turns on the heat
-  int THERM_PIN; // The pin for the thermistor 
-
-  String ID; // name of the Heater
-
-  unsigned long lastTime;
-  float input, output, setpoint;
-  float I_term, lastInput;
-  float kp, ki, kd;
-  int SAMPLE_TIME; // Time between samples in millis
-  const int OUT_MIN = 0; // PWM off
-  const int OUT_MAX = 255; // PWM fully on
-  int BETA;
-  float R_ZERO;
-  float R_INF;
-
-  const int DIVIDE_RESIST = 4700;
-  const float TO_VOLTS = 5.0/1024.0; // 5V board power / 1024 10bit range
-
-  public: Heater(int heatPin, int thermPin, int beta, float r_zero, int sample_time, String id){
-    HEAT_PIN = heatPin;
-    THERM_PIN = thermPin;
-    BETA = beta;
-    R_ZERO = r_zero;
-    SAMPLE_TIME = sample_time;
-    ID = id;
-
-    R_INF = R_ZERO*exp(1.0 * -BETA / 298.15); // 298K = 25C = reference temp
-    
-    pinMode(HEAT_PIN, OUTPUT);
-    pinMode(THERM_PIN, INPUT);
-    lastTime = 0; 
-  }
-
-  void compute(){
-  unsigned long now = millis();
-  int timeChange = (now - lastTime);
-  if(timeChange >= SAMPLE_TIME)
-  {
-    input = getCurrTemp();
-    /*Compute all the working error variables*/
-    float error = setpoint - input;
-    I_term += (ki * error);
-    if(I_term > OUT_MAX) I_term = OUT_MAX;
-    else if(I_term < OUT_MIN) I_term = OUT_MIN;
-    float dInput = (input - lastInput);
-  
-    /*Compute PID Output*/
-    output = kp * error + I_term- kd * dInput;
-    if(output > OUT_MAX) output = OUT_MAX;
-    else if(output < OUT_MIN) output = OUT_MIN;
-
-//    String out = "Output: " + String(Output);
-//    Serial.println(out);
-    analogWrite(HEAT_PIN, output);
-  
-    /*Remember some variables for next time*/
-    lastInput = input;
-    lastTime = now;
-  }
-  }
-
-  float getCurrTemp(){
-    float resistance = 1.0 * DIVIDE_RESIST / (5 / (analogRead(THERM_PIN)*TO_VOLTS) - 1); // 5 is 5V board
-    return BETA / log(resistance/R_INF) - 273.15;
-  }
-
-  void setTunings(float Kp, float Ki, float Kd){
-    kp = Kp;
-    ki = Ki * SAMPLE_TIME;
-    kd = Kd / SAMPLE_TIME;
-  }
-};
-
 #include <SPI.h>
 #include <math.h>
+#include <Heater.h>
 
 // E0 Main extruder
 const int E0_enable = 26; // low == enabled
@@ -94,7 +19,7 @@ const int BETA_NOZZLE = 4267; // Semitec 104GT-2 Thermistor
 const int R_ZERO = 100000; // Resistance at 25C
 const int E0_SAMPLE_TIME = 500; // milliseconds
 
-Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
+Heater2 E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
 
 // Digipot
 const int slave_select_pin = 38;
@@ -154,14 +79,17 @@ void setup() {
 
   digitalWrite(E0_MS1, LOW);
   digitalWrite(E0_MS2, LOW);
-  
 
+  E0_heater.setTunings(50, 1, 9); // Initial PID parameters
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 
+  E0_heater.compute();
+
 }
+
 
 
 
