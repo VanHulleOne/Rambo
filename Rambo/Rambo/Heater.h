@@ -9,6 +9,7 @@ class Heater{
     void compute();
     float getCurrTemp();
     void setTunings(float Kp, float Ki, float Kd);
+    void setTargetTemp(float set_p);
 
   private:
     int HEAT_PIN;
@@ -19,7 +20,7 @@ class Heater{
     unsigned long lastTime;
     float input;
     float output;
-    float setpoint;
+    float targetTemp;
     float I_term;
     float lastInput;
     float kp;

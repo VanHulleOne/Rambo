@@ -1,26 +1,5 @@
 #include "Heater.h"
 
-// int HEAT_PIN;  // The pin which turns on the heat
-// int THERM_PIN; // The pin for the thermistor
-//
-// String ID; // name of the Heater
-//
-// unsigned long lastTime;
-// float input;
-// float output;
-// float setpoint;
-// float I_term, lastInput;
-// float kp, ki, kd;
-// int SAMPLE_TIME; // Time between samples in millis
-// int OUT_MIN = 0; // PWM off
-// int OUT_MAX = 255; // PWM fully on
-// int BETA;
-// float R_ZERO;
-// float R_INF;
-//
-// int DIVIDE_RESIST = 4700;
-// float TO_VOLTS = 5.0/1024.0; // 5V board power / 1024 10bit range
-
 Heater::Heater(int heatPin, int thermPin, int beta, float r_zero, int sample_time, String id){
   HEAT_PIN = heatPin;
   THERM_PIN = thermPin;
@@ -47,7 +26,7 @@ void Heater::compute(){
   if(timeChange >= SAMPLE_TIME){
     input = getCurrTemp();
     /*Compute all the working error variables*/
-    float error = setpoint - input;
+    float error = targetTemp - input;
     I_term += (ki * error);
     if(I_term > OUT_MAX) I_term = OUT_MAX;
     else if(I_term < OUT_MIN) I_term = OUT_MIN;
@@ -77,4 +56,8 @@ void Heater::setTunings(float Kp, float Ki, float Kd){
   kp = Kp;
   ki = Ki * SAMPLE_TIME;
   kd = Kd / SAMPLE_TIME;
+}
+
+void Heater::setTargetTemp(float set_p){
+  targetTemp = set_p;
 }
