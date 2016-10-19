@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #include <SPI.h>
 #include <math.h>
 #include <Heater.h>
@@ -16,10 +18,10 @@ const bool E0_EXTRUDE = 0;
 const bool E0_RETRACT = 1;
 const int E0_thermistor = 0;
 const int BETA_NOZZLE = 4267; // Semitec 104GT-2 Thermistor
-const int R_ZERO = 100000; // Resistance at 25C
+const long R_ZERO = 100000; // Resistance at 25C
 const int E0_SAMPLE_TIME = 500; // milliseconds
 
-Heater2 E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
+Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
 
 // Digipot
 const int slave_select_pin = 38;
@@ -66,7 +68,7 @@ void setup() {
   pinMode(small_fan, OUTPUT);
   pinMode(large_fan, OUTPUT);
 
-  
+
 
   Serial.begin(9600);
 
@@ -89,7 +91,3 @@ void loop() {
   E0_heater.compute();
 
 }
-
-
-
-

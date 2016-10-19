@@ -13,9 +13,9 @@ class Heater{
   private:
     int HEAT_PIN;
     int THERM_PIN;
-  
+
     String ID;
-  
+
     unsigned long lastTime;
     float input;
     float output;
@@ -26,14 +26,14 @@ class Heater{
     float ki;
     float kd;
     int SAMPLE_TIME;
-    const int OUT_MIN;
-    const int OUT_MAX;
+    int OUT_MIN;
+    int OUT_MAX;
     int BETA;
     float R_ZERO;
     float R_INF;
-  
-    const int DIVIDE_RESIST;
-    const float TO_VOLTS;
+
+    int DIVIDE_RESIST;
+    float TO_VOLTS;
 };
 
 #endif
