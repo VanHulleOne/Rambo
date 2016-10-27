@@ -58,10 +58,12 @@ void setup() {
   pinMode(small_fan, OUTPUT);
   pinMode(large_fan, OUTPUT);
 
-
-
   Serial.begin(9600);
 
+  /*
+  The Rambo board has programmable potentiometers or 'digipots' for tuning
+  each individual stepper motor. the following code handles that
+  */
   SPI.begin();
   digitalWrite(slave_select_pin, LOW);
   SPI.transfer(E0_digipot_channel);
@@ -72,13 +74,33 @@ void setup() {
   digitalWrite(E0_MS1, LOW);
   digitalWrite(E0_MS2, LOW);
 
-  E0_heater.setTunings(50, 1, 9); // Initial PID parameters
+  E0_heater.setTunings(50, 1, 9); // Initial Nozzle PID parameters
   E0_heater.setTargetTemp(100);
-  bed_heater.setTunings(50, 0.5, 9); // Bed PID Values
+  bed_heater.setTunings(50, 0.5, 9); // Initial Bed PID Values
   bed_heater.setTargetTemp(35);
+
+  // initialize timer 3 for the stepper motor interupts
+  noInterrupts();
+  // clear current bit selections
+  TCCR3A = 0;
+  TCCR3B = 0;
+  TCNT3 = 0;
+
+  OCR3A = 1600;     // compare match register 10kHz
+  TCCR3B |= (1 << WGM12); // CTC mode
+  TCCR3B |= (1 << CS10); // No prescaling
+  TIMSK3 |= (1 << OCIE3A); // enable timer compare interrupt
+  interupts(); // enable global interupts
+
+
+
 }
 
 void setFans(){
+  /*
+    Tests the current temperature of the nozzle and then turns on the
+    fans if they are above their temperatures.
+  */
   unsigned long now = millis();
   if(now - last_fan_time > FAN_SAMPLE_TIME){
     float currTemp = E0_heater.getCurrTemp();
@@ -90,6 +112,11 @@ void setFans(){
     }
     last_fan_time = now;
   }
+}
+
+void runMotor(){
+  unsinged long = micros();
+  if(now - last_E0_time > )
 }
 
 void loop() {
