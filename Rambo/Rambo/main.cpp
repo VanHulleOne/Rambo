@@ -20,6 +20,9 @@ const int E0_thermistor = 0;
 const int BETA_NOZZLE = 4267; // Semitec 104GT-2 Thermistor
 const long R_ZERO = 100000; // Resistance at 25C
 const int E0_SAMPLE_TIME = 500; // milliseconds
+const int LED_PIN = 13;
+const int MAX_VELOCITY = 10430; // 0.3183 increments/cycle * 2^15 = 10430
+int acceleration = 3; // 1.1406*10^-4 * 2^15 = 3.73 = 3
 
 Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
 
@@ -58,6 +61,8 @@ void setup() {
   pinMode(small_fan, OUTPUT);
   pinMode(large_fan, OUTPUT);
 
+  pinMode(LED_PIN, OUTPUT);
+
   Serial.begin(9600);
 
   /*
@@ -93,6 +98,10 @@ void setup() {
   interupts(); // enable global interupts
 
 
+
+}
+
+ISR(TIMER3_COMPA_vect){
 
 }
 
