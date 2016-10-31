@@ -13,7 +13,7 @@ const int E0_MS2 = 66;
 const int E0_digipot_channel = 0;
 const float E0_steps_per_mm = 38.197;
 const int E0_heater_pin = 9;
-const int E0_digipot_setting = 150;
+const int E0_digipot_setting = 100;
 const bool E0_EXTRUDE = 0;
 const bool E0_RETRACT = 1;
 const int E0_thermistor = 0;
@@ -22,12 +22,14 @@ const long R_ZERO = 100000; // Resistance at 25C
 const int E0_SAMPLE_TIME = 500; // milliseconds
 const int LED_PIN = 13;
 const int MAX_VELOCITY = 10430; // 0.3183 increments/cycle * 2^15 = 10430
-const int MAX_ACCELERATION = 3; // 1.1406*10^-4 * 2^15 = 3.73 = 3
+const int MAX_ACCELERATION = 4; // 1.1406*10^-4 * 2^15 = 3.73 = 3
 int E0_acceleration = 0;
 int E0_velocity = 0;
-int E0_position = 0;
+signed int E0_position = 0;
 int target_velocity = 0;
 unsigned long motor_test_time = 0;
+int micro_step_scale = 1; // The micro step scale can be 1, 2, 4, or 16 based on
+                          // the stepper driver data sheet
 
 Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
 
@@ -83,6 +85,7 @@ void setup() {
 
   digitalWrite(E0_MS1, LOW);
   digitalWrite(E0_MS2, LOW);
+  digitalWrite(E0_dir, LOW);
 
   E0_heater.setTunings(50, 1, 9); // Initial Nozzle PID parameters
   E0_heater.setTargetTemp(100);
@@ -101,12 +104,36 @@ void setup() {
   TCCR3B |= (1 << CS10); // No prescaling
   TIMSK3 |= (1 << OCIE3A); // enable timer compare interrupt
   interrupts(); // enable global interupts
+}
 
-
-
+void scaleMicroStep(){
+  int holdScale = MAX_VELOCITY/abs(E0_velocity);
+  if(holdScale >= 16){
+    micro_step_scale = 16;
+    digitalWrite(E0_MS1, HIGH);
+    digitalWrite(E0_MS2, HIGH);
+  }
+  else if (holdScale >= 4){
+    micro_step_scale = 4;
+    digitalWrite(E0_MS1, LOW);
+    digitalWrite(E0_MS2, HIGH);
+  }
+  else if (holdScale >= 2){
+    micro_step_scale = 2;
+    digitalWrite(E0_MS1, HIGH);
+    digitalWrite(E0_MS2, LOW);
+  }
+  else{
+    micro_step_scale = 1;
+    digitalWrite(E0_MS1, LOW);
+    digitalWrite(E0_MS2, LOW);
+  }
+  delayMicroseconds(2);
 }
 
 ISR(TIMER3_COMPA_vect){
+  noInterrupts();
+
   E0_velocity += E0_acceleration;
   if(E0_velocity > MAX_VELOCITY){
     E0_velocity = MAX_VELOCITY;
@@ -114,16 +141,26 @@ ISR(TIMER3_COMPA_vect){
   else if(E0_velocity < -MAX_VELOCITY){
     E0_velocity = -MAX_VELOCITY;
   }
-  E0_position += E0_velocity;
-  if(SREG & 0x03){ // The third bit in SREG is the overflow flag. If we overflow
+  if(E0_velocity < 0){ // Retract filament
+    digitalWrite(E0_dir, HIGH);
+  }
+  else{ // Extrude filament
+    digitalWrite(E0_dir, LOW);
+  }
+
+  scaleMicroStep();
+
+  E0_position += E0_velocity*micro_step_scale;//scaledVelocity;
+
+  if(SREG & 0b00001000){ // The third bit in SREG is the overflow flag. If we overflow
                     // Then we know we should increment the stepper
+
     E0_position -= 0x8000; // Subtract a 1 in 16bit math
     digitalWrite(E0_step, HIGH);
-    digitalWrite(LED_PIN, HIGH);
-    delayMicroseconds(10);
+    delayMicroseconds(2);
     digitalWrite(E0_step, LOW);
-    digitalWrite(LED_PIN, LOW);
   }
+  interrupts();
 }
 
 void setFans(){
@@ -145,20 +182,34 @@ void setFans(){
 }
 
 void testMotor(){
+  noInterrupts();
   unsigned long ellapsed = millis() - motor_test_time;
-  if(motor_test_time == 0){
+//   if(motor_test_time == 0){
+//     motor_test_time = millis();
+// //    E0_acceleration = MAX_ACCELERATION;
+//     return;
+//   }
+  if((E0_velocity >= MAX_VELOCITY || E0_velocity <= -MAX_VELOCITY) && motor_test_time==0){
     motor_test_time = millis();
-    return;
+    // E0_acceleration *= -1;
   }
-  if(ellapsed < 5000){
-    if(E0_velocity > MAX_VELOCITY / 5){
-      E0_acceleration = 0;
-    }
-    else E0_acceleration = MAX_ACCELERATION;
+  else if(motor_test_time >0 && ellapsed < 1500){
+
   }
-  else{
-    E0_acceleration = 0;
+  else if(motor_test_time>0 && ellapsed >= 1500){
+    motor_test_time = 0;
+    E0_acceleration *= -1;
   }
+  interrupts();
+  // if(ellapsed < 5000){
+  //   if(E0_velocity <= -MAX_VELOCITY){
+  //     E0_acceleration = 0;
+  //   }
+  //   else E0_acceleration = -MAX_ACCELERATION;
+  // }
+  // else{
+  //   E0_acceleration = 0;
+  // }
 }
 
 void loop() {
@@ -168,4 +219,12 @@ void loop() {
   bed_heater.compute();
   setFans();
   testMotor();
+//   delayMicroseconds(100);
+//  E0_acceleration = -MAX_ACCELERATION;
+//Serial.print("Scaled Velocity: ");
+//Serial.println(E0_velocity*micro_step_scale);
+// Serial.print("Velocity: ");
+Serial.println(E0_velocity);
+//  Serial.println(E0_velocity);
+  // Serial.println(E0_position);
 }
