@@ -22,7 +22,12 @@ const long R_ZERO = 100000; // Resistance at 25C
 const int E0_SAMPLE_TIME = 500; // milliseconds
 const int LED_PIN = 13;
 const int MAX_VELOCITY = 10430; // 0.3183 increments/cycle * 2^15 = 10430
-int acceleration = 3; // 1.1406*10^-4 * 2^15 = 3.73 = 3
+const int MAX_ACCELERATION = 3; // 1.1406*10^-4 * 2^15 = 3.73 = 3
+int E0_acceleration = 0;
+int E0_velocity = 0;
+int E0_position = 0;
+int target_velocity = 0;
+unsigned long motor_test_time = 0;
 
 Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
 
@@ -95,14 +100,30 @@ void setup() {
   TCCR3B |= (1 << WGM12); // CTC mode
   TCCR3B |= (1 << CS10); // No prescaling
   TIMSK3 |= (1 << OCIE3A); // enable timer compare interrupt
-  interupts(); // enable global interupts
+  interrupts(); // enable global interupts
 
 
 
 }
 
 ISR(TIMER3_COMPA_vect){
-
+  E0_velocity += E0_acceleration;
+  if(E0_velocity > MAX_VELOCITY){
+    E0_velocity = MAX_VELOCITY;
+  }
+  else if(E0_velocity < -MAX_VELOCITY){
+    E0_velocity = -MAX_VELOCITY;
+  }
+  E0_position += E0_velocity;
+  if(SREG & 0x03){ // The third bit in SREG is the overflow flag. If we overflow
+                    // Then we know we should increment the stepper
+    E0_position -= 0x8000; // Subtract a 1 in 16bit math
+    digitalWrite(E0_step, HIGH);
+    digitalWrite(LED_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(E0_step, LOW);
+    digitalWrite(LED_PIN, LOW);
+  }
 }
 
 void setFans(){
@@ -123,14 +144,28 @@ void setFans(){
   }
 }
 
-void runMotor(){
-  unsinged long = micros();
-  if(now - last_E0_time > )
+void testMotor(){
+  unsigned long ellapsed = millis() - motor_test_time;
+  if(motor_test_time == 0){
+    motor_test_time = millis();
+    return;
+  }
+  if(ellapsed < 5000){
+    if(E0_velocity > MAX_VELOCITY / 5){
+      E0_acceleration = 0;
+    }
+    else E0_acceleration = MAX_ACCELERATION;
+  }
+  else{
+    E0_acceleration = 0;
+  }
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 
   E0_heater.compute();
+  bed_heater.compute();
   setFans();
+  testMotor();
 }
