@@ -184,11 +184,6 @@ void setFans(){
 void testMotor(){
   noInterrupts();
   unsigned long ellapsed = millis() - motor_test_time;
-//   if(motor_test_time == 0){
-//     motor_test_time = millis();
-// //    E0_acceleration = MAX_ACCELERATION;
-//     return;
-//   }
   if((E0_velocity >= MAX_VELOCITY || E0_velocity <= -MAX_VELOCITY) && motor_test_time==0){
     motor_test_time = millis();
     // E0_acceleration *= -1;
@@ -201,30 +196,13 @@ void testMotor(){
     E0_acceleration *= -1;
   }
   interrupts();
-  // if(ellapsed < 5000){
-  //   if(E0_velocity <= -MAX_VELOCITY){
-  //     E0_acceleration = 0;
-  //   }
-  //   else E0_acceleration = -MAX_ACCELERATION;
-  // }
-  // else{
-  //   E0_acceleration = 0;
-  // }
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-
-  E0_heater.compute();
-  bed_heater.compute();
-  setFans();
-  testMotor();
-//   delayMicroseconds(100);
-//  E0_acceleration = -MAX_ACCELERATION;
-//Serial.print("Scaled Velocity: ");
-//Serial.println(E0_velocity*micro_step_scale);
-// Serial.print("Velocity: ");
-Serial.println(E0_velocity);
-//  Serial.println(E0_velocity);
-  // Serial.println(E0_position);
+  Serial.println('Hi');
+  // E0_heater.compute();
+  // bed_heater.compute();
+  // setFans();
+  // testMotor();
 }
