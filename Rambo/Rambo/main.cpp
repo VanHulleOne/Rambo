@@ -2,7 +2,7 @@
 
 #include <SPI.h>
 #include <math.h>
-#include <Heater.h>
+#include "Heater.h"
 
 // E0 Main extruder
 const int E0_enable = 26; // low == enabled
@@ -31,6 +31,7 @@ unsigned long motor_test_time = 0;
 int micro_step_scale = 1; // The micro step scale can be 1, 2, 4, or 16 based on
                           // the stepper driver data sheet
 
+// Nozzle Heater
 Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
 
 // Digipot
@@ -54,7 +55,16 @@ const int MIN_HIGH_PULSE = 200; // microseconds
 const int MIN_LOW_PULSE = 5; //microseconds
 // TODO: Add ramp information
 
-// THERMISTOR
+// Inputs from robot
+const int MAN_EXTRUDE = 84,
+          HEAT_BED = 83,
+          HEAT_NOZZLE = 82,
+          PROG_FEED = 80,
+          ALL_STOP = 79;
+
+// Outputs to robot
+const int BED_AT_TEMP = 71,
+          NOZZLE_AT_TEMP = 72;
 
 void setup() {
   // put your setup code here, to run once:
@@ -63,10 +73,20 @@ void setup() {
   pinMode(E0_dir, OUTPUT);
   pinMode(E0_MS1, OUTPUT);
   pinMode(E0_MS2, OUTPUT);
-//  pinMode(E0_heater, OUTPUT);
   pinMode(slave_select_pin, OUTPUT);
   pinMode(small_fan, OUTPUT);
   pinMode(large_fan, OUTPUT);
+
+  // Inputs from robot
+  pinMode(MAN_EXTRUDE, INPUT);
+  pinMode(HEAT_BED, INPUT);
+  pinMode(HEAT_NOZZLE, INPUT);
+  pinMode(PROG_FEED, INPUT);
+  pinMode(ALL_STOP, INPUT);
+
+  // Outputs to robot
+  pinMode(BED_AT_TEMP, OUTPUT);
+  pinMode(NOZZLE_AT_TEMP, OUTPUT);
 
   pinMode(LED_PIN, OUTPUT);
 
@@ -92,7 +112,7 @@ void setup() {
   bed_heater.setTunings(50, 0.5, 9); // Initial Bed PID Values
   bed_heater.setTargetTemp(35);
 
-  // initialize timer 3 for the stepper motor interupts
+  // initialize timer 3 for the stepper motor interrupts
   noInterrupts();
   // clear current bit selections
   TCCR3A = 0;
@@ -106,6 +126,13 @@ void setup() {
   interrupts(); // enable global interupts
 }
 
+
+/**
+scaleMicroStep() checks the current commanded velocity and determines if it
+is within one of the available micro step ranges. Using micro steps enables
+better lower speed performance and more reliable accelerations from zero.
+The available micro steps are 1 (full speed) 2, 4, and 16.
+*/
 void scaleMicroStep(){
   int holdScale = MAX_VELOCITY/abs(E0_velocity);
   if(holdScale >= 16){
@@ -150,7 +177,7 @@ ISR(TIMER3_COMPA_vect){
 
   scaleMicroStep();
 
-  E0_position += E0_velocity*micro_step_scale;//scaledVelocity;
+  E0_position += E0_velocity*micro_step_scale;
 
   if(SREG & 0b00001000){ // The third bit in SREG is the overflow flag. If we overflow
                     // Then we know we should increment the stepper
@@ -159,6 +186,15 @@ ISR(TIMER3_COMPA_vect){
     digitalWrite(E0_step, HIGH);
     delayMicroseconds(2);
     digitalWrite(E0_step, LOW);
+  }
+  if(target_velocity - E0_velocity > MAX_ACCELERATION){
+    E0_acceleration = MAX_ACCELERATION;
+  }
+  else if(E0_velocity - target_velocity > MAX_ACCELERATION){
+    E0_acceleration = -MAX_ACCELERATION;
+  }
+  else{
+    E0_acceleration = 0;
   }
   interrupts();
 }
@@ -199,10 +235,25 @@ void testMotor(){
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  Serial.println('Hi');
-  // E0_heater.compute();
-  // bed_heater.compute();
-  // setFans();
-  // testMotor();
+  if(digitalRead(HEAT_NOZZLE)){
+    E0_heater.setTargetTemp(100);
+    if(E0_heater.atTemp()){
+      digitalWrite(NOZZLE_AT_TEMP, HIGH);
+    }
+    else{
+      digitalWrite(NOZZLE_AT_TEMP, LOW);
+    }
+  }
+  else{
+    E0_heater.setTargetTemp(0);
+  }
+  if(digitalRead(MAN_EXTRUDE)){
+    target_velocity = 100*2.086;
+  }
+  else{
+    target_velocity = 0;
+  }
+  E0_heater.compute();
+  bed_heater.compute();
+  setFans();
 }
