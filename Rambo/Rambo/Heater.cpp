@@ -14,7 +14,6 @@ Heater::Heater(int heatPin, int thermPin, int beta, float r_zero, int sample_tim
 
   R_INF = R_ZERO*exp(1.0 * -BETA / 298.15); // 298K = 25C = reference temp
 
-  pinMode(13, OUTPUT);
   pinMode(HEAT_PIN, OUTPUT);
   pinMode(THERM_PIN, INPUT);
   lastTime = 0;
@@ -60,4 +59,11 @@ void Heater::setTunings(float Kp, float Ki, float Kd){
 
 void Heater::setTargetTemp(float set_p){
   targetTemp = set_p;
+}
+
+bool Heater::atTemp(){
+  if(targetTemp - getCurrTemp() < 5){
+    return true;
+  }
+  return false;
 }

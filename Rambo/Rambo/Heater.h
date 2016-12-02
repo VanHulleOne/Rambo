@@ -10,6 +10,7 @@ class Heater{
     float getCurrTemp();
     void setTunings(float Kp, float Ki, float Kd);
     void setTargetTemp(float set_p);
+    bool atTemp();
 
   private:
     int HEAT_PIN;
