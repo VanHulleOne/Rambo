@@ -66,6 +66,9 @@ const int MAN_EXTRUDE = 84,
 const int BED_AT_TEMP = 71,
           NOZZLE_AT_TEMP = 72;
 
+// Report
+unsigned long last_report_time = 0;
+
 void setup() {
   // put your setup code here, to run once:
   pinMode(E0_enable, OUTPUT);
@@ -78,11 +81,11 @@ void setup() {
   pinMode(large_fan, OUTPUT);
 
   // Inputs from robot
-  pinMode(MAN_EXTRUDE, INPUT);
-  pinMode(HEAT_BED, INPUT);
-  pinMode(HEAT_NOZZLE, INPUT);
-  pinMode(PROG_FEED, INPUT);
-  pinMode(ALL_STOP, INPUT);
+  pinMode(MAN_EXTRUDE, INPUT_PULLUP);
+  pinMode(HEAT_BED, INPUT_PULLUP);
+  pinMode(HEAT_NOZZLE, INPUT_PULLUP);
+  pinMode(PROG_FEED, INPUT_PULLUP);
+  pinMode(ALL_STOP, INPUT_PULLUP);
 
   // Outputs to robot
   pinMode(BED_AT_TEMP, OUTPUT);
@@ -234,8 +237,23 @@ void testMotor(){
   interrupts();
 }
 
+void report(){
+  unsigned long now = millis();
+  if(now - last_report_time > 1000){
+    Serial.print("velocity target: ");
+    Serial.println(target_velocity);
+    Serial.print("Accel: ");
+    Serial.println(E0_acceleration);
+    Serial.print("MAN_EXTRUDE: ");
+    Serial.println(digitalRead(MAN_EXTRUDE));
+    Serial.println();
+
+    last_report_time = now;
+  }
+}
+
 void loop() {
-  if(digitalRead(HEAT_NOZZLE)){
+  if(!digitalRead(HEAT_NOZZLE)){
     E0_heater.setTargetTemp(100);
     if(E0_heater.atTemp()){
       digitalWrite(NOZZLE_AT_TEMP, HIGH);
@@ -247,7 +265,7 @@ void loop() {
   else{
     E0_heater.setTargetTemp(0);
   }
-  if(digitalRead(MAN_EXTRUDE)){
+  if(!digitalRead(MAN_EXTRUDE)){
     target_velocity = 100*2.086;
   }
   else{
@@ -256,4 +274,5 @@ void loop() {
   E0_heater.compute();
   bed_heater.compute();
   setFans();
+  report();
 }
