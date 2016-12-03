@@ -393,24 +393,6 @@ void report(){
 }
 
 void loop() {
-  if(!digitalRead(HEAT_NOZZLE)){
-    E0_heater.setTargetTemp(100);
-    if(E0_heater.atTemp()){
-      digitalWrite(NOZZLE_AT_TEMP, HIGH);
-    }
-    else{
-      digitalWrite(NOZZLE_AT_TEMP, LOW);
-    }
-  }
-  else{
-    E0_heater.setTargetTemp(0);
-  }
-  if(!digitalRead(MAN_EXTRUDE)){
-    target_velocity = 100*VELOCITY_CONVERSION;
-  }
-  else{
-    target_velocity = 0;
-  }
   E0_heater.compute();
   bed_heater.compute();
   checkStates();
