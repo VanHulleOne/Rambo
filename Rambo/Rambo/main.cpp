@@ -23,6 +23,9 @@ const int E0_SAMPLE_TIME = 500; // milliseconds
 const int LED_PIN = 13;
 const int MAX_VELOCITY = 10430; // 0.3183 increments/cycle * 2^15 = 10430
 const int MAX_ACCELERATION = 4; // 1.2207*10^-4 * 2^15 = 4
+const float VELOCITY_CONVERSION = 2.086;  // The desired speed in mm/min * EXTRDUER_CONVERSION
+                                          // puts us into increment math
+const int PROGRAM_FEED_RATE = 30 * VELOCITY_CONVERSION;
 int E0_acceleration = 0;
 int E0_velocity = 0;
 signed int E0_position = 0;
@@ -31,8 +34,7 @@ unsigned long motor_test_time = 0;
 int micro_step_scale = 1; // The micro step scale can be 1, 2, 4, or 16 based on
                           // the stepper driver data sheet
 
-const float EXTRDUER_CONVERSION = 2.086;  // The desired speed in mm/min * EXTRDUER_CONVERSION
-                                          // puts us into increment math
+
 
 // Nozzle Heater
 Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
@@ -58,15 +60,24 @@ const int MIN_HIGH_PULSE = 200; // microseconds
 const int MIN_LOW_PULSE = 5; //microseconds
 
 // betweenLayerRetract
+const int retract_dist = 1810; // TODO: create constant for converting mm to dist
 long num_interrupts = 0;
 bool bet_layer_retract_done = true;
 bool prev_bet_layer_retract = true;
 bool  S_retract = 0,
       S_between_layer = 0,
       S_extrude = 0,
-      S_wait = 1,
-      S_printing = 0;
+      S_wait = 0,
+      S_printing = 0,
+      S_manual_extrude = 0,
+      S_ALL_STOP = 0,
+      S0 = 1,
+      D1 = 0,
+      D2 = 0,
+      D3 = 0;
 int direction = 0;
+
+String currState = "";
 
 // Inputs from robot
 const int MAN_EXTRUDE = 84,
@@ -75,6 +86,13 @@ const int MAN_EXTRUDE = 84,
           PROG_FEED = 81,
           BETWEEN_LAYER_RETRACT = 80,
           ALL_STOP = 79;
+
+bool man_extrude,
+    heat_bed,
+    heat_nozzle,
+    prog_feed,
+    between_layer_retract,
+    all_stop;
 
 // Outputs to robot
 const int BED_AT_TEMP = 71,
@@ -179,7 +197,27 @@ void scaleMicroStep(){
 ISR(TIMER3_COMPA_vect){
   noInterrupts();
 
-  E0_velocity = target_velocity == 0 ? 0 : E0_acceleration + E0_velocity;
+  int velocity_error = target_velocity - E0_velocity;
+
+  if(target_velocity == 0){ // If we are not supposed to be moving
+    // Note: This code does not decelerate to 0 if target_velocity == 0
+    E0_velocity = 0;
+    E0_acceleration = 0;
+  }
+  else if(abs(velocity_error)/2 <= MAX_ACCELERATION){
+    // If we are within 1/2 of an acceleration step of our target velocity then
+    // stop accelerating/
+    E0_acceleration = 0;
+  }
+  else if(velocity_error > 0){ // We need to speed up
+    E0_acceleration = MAX_ACCELERATION;
+  }
+  else{ // We need to slow down
+    E0_acceleration = -MAX_ACCELERATION;
+  }
+
+  E0_velocity += E0_acceleration;
+
   if(E0_velocity > MAX_VELOCITY){
     E0_velocity = MAX_VELOCITY;
   }
@@ -219,30 +257,57 @@ ISR(TIMER3_COMPA_vect){
 }
 
 void checkStates(){
-  bool end_Layer = !digitalRead(BETWEEN_LAYER_RETRACT);
-  int retract_dist = 1810;
-  S_printing = (S_printing | (S_wait & digitalRead(PROG_FEED))) & !S_retract;
-  S_wait = (S_wait | (S_extrude & (num_interrupts > retract_dist))) & !S_printing;
-  S_extrude = (S_extrude | (S_between_layer & !end_Layer)) & !S_wait;
-  S_between_layer = (S_between_layer | (S_retract & (num_interrupts > retract_dist))) & !S_extrude;
-  S_retract = (S_retract | (S_printing & end_Layer)) & !S_between_layer;
+  man_extrude = !digitalRead(MAN_EXTRUDE);
+  heat_bed = !digitalRead(HEAT_BED);
+  heat_nozzle = !digitalRead(HEAT_NOZZLE);
+  prog_feed = !digitalRead(PROG_FEED);
+  between_layer_retract = !digitalRead(BETWEEN_LAYER_RETRACT);
+  all_stop = !digitalRead(ALL_STOP);
 
-  if((S_wait & !S_printing) | (S_between_layer & !S_extrude)){
+  S0 = (S0 || D1 || D2 || D3) && !(S_manual_extrude || S_printing);
+  S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
+  D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
+  S_printing = (S_printing || (S0 && prog_feed)) && !(D2 || S_retract);
+  S_retract = (S_retract || (S_printing && between_layer_retract)) && !S_wait;
+  S_wait = (S_wait || (num_interrupts >= retract_dist)) && !(S_extrude || D2);
+  S_extrude = (S_extrude || (S_wait && !between_layer_retract)) && !S_printing;
+  D2 = (D2 ||((S_wait || S_printing) && !prog_feed)) && !S0;
+  D3 = (D3 || (S_ALL_STOP && !(prog_feed && heat_bed && heat_nozzle
+                          && between_layer_retract && all_stop))) && !S0;
+  S_ALL_STOP = (S_ALL_STOP || all_stop) & !D3;
+  if(S_ALL_STOP){
+    S0  = S_manual_extrude = D1 = S_printing = S_retract = S_wait = S_extrude
+        = D2 = D3 = 0;
+    E0_heater.setTargetTemp(0);
+    bed_heater.setTargetTemp(0);
+    target_velocity = 0;
+    currState = "ALL_STOP";
+  }
+  else if(S0 && !(S_manual_extrude || S_printing)){
+    target_velocity = 0;
+    currState = "S0";
+  }
+  else if(S_manual_extrude && !D1){
+    target_velocity = 100 * VELOCITY_CONVERSION; // Manual extrude speed
+    currState = "Manul Extrude";
+  }
+  else if(S_printing && !(D2 || S_retract)){
+    num_interrupts = 0;
+    target_velocity = PROGRAM_FEED_RATE;
+    currState = "Printing";
+  }
+  else if(S_retract && !S_wait){
+    target_velocity = -MAX_VELOCITY;
+    currState = "Retract";
+  }
+  else if(S_wait && !(S_extrude || D2)){
     num_interrupts = 0;
     target_velocity = 0;
-    E0_acceleration = 0;
+    currState = "Wait";
   }
-  else if(S_printing & !S_retract){
-    num_interrupts = 0;
-    if
-  }
-  else if(S_retract & !S_between_layer){
-    E0_acceleration = -MAX_ACCELERATION;
-    target_velocity = -MAX_VELOCITY;
-  }
-  else if(S_extrude & !S_wait){
-    E0_acceleration = MAX_ACCELERATION;
+  else if(S_extrude && !S_printing){
     target_velocity = MAX_VELOCITY;
+    currState = "Extrude";
   }
 }
 
@@ -287,9 +352,7 @@ void report(){
     Serial.print("velocity target: ");
     Serial.println(target_velocity);
     Serial.print("Accel: ");
-    Serial.println(E0_acceleration);
-    Serial.print("MAN_EXTRUDE: ");
-    Serial.println(digitalRead(MAN_EXTRUDE));
+    Serial.print("Curr State: ");
     Serial.println();
 
     last_report_time = now;
@@ -310,7 +373,7 @@ void loop() {
     E0_heater.setTargetTemp(0);
   }
   if(!digitalRead(MAN_EXTRUDE)){
-    target_velocity = 100*EXTRDUER_CONVERSION;
+    target_velocity = 100*VELOCITY_CONVERSION;
   }
   else{
     target_velocity = 0;
