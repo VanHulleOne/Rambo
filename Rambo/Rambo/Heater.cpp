@@ -61,6 +61,10 @@ void Heater::setTargetTemp(float set_p){
   targetTemp = set_p;
 }
 
+float Heater::getTargetTemp(){
+  return targetTemp;
+}
+
 bool Heater::atTemp(){
   if(targetTemp - getCurrTemp() < 5){
     return true;

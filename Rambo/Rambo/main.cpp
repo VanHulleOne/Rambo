@@ -204,10 +204,11 @@ ISR(TIMER3_COMPA_vect){
     E0_velocity = 0;
     E0_acceleration = 0;
   }
-  else if(abs(velocity_error)/2 <= MAX_ACCELERATION){
+  else if(abs(velocity_error)*2 <= MAX_ACCELERATION){
     // If we are within 1/2 of an acceleration step of our target velocity then
-    // stop accelerating/
+    // stop accelerating and assign the target velocity
     E0_acceleration = 0;
+    E0_velocity = target_velocity;
   }
   else if(velocity_error > 0){ // We need to speed up
     E0_acceleration = MAX_ACCELERATION;
@@ -383,9 +384,17 @@ void report(){
   unsigned long now = millis();
   if(now - last_report_time > 1000){
     Serial.print("velocity target: ");
-    Serial.println(target_velocity);
+    Serial.print(target_velocity);
+    Serial.print("\tE0_velocity: ");
+    Serial.println(E0_velocity);
     Serial.print("Accel: ");
+    Serial.println(E0_acceleration);
     Serial.print("Curr State: ");
+    Serial.println(currState);
+    Serial.print("Targ Temp: ");
+    Serial.print(E0_heater.getTargetTemp());
+    Serial.print("\tCurr Temp: ");
+    Serial.println(E0_heater.getCurrTemp());
     Serial.println();
 
     last_report_time = now;
