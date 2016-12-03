@@ -22,7 +22,7 @@ const long R_ZERO = 100000; // Resistance at 25C
 const int E0_SAMPLE_TIME = 500; // milliseconds
 const int LED_PIN = 13;
 const int MAX_VELOCITY = 10430; // 0.3183 increments/cycle * 2^15 = 10430
-const int MAX_ACCELERATION = 4; // 1.1406*10^-4 * 2^15 = 3.73 = 3
+const int MAX_ACCELERATION = 4; // 1.2207*10^-4 * 2^15 = 4
 int E0_acceleration = 0;
 int E0_velocity = 0;
 signed int E0_position = 0;
@@ -30,6 +30,9 @@ int target_velocity = 0;
 unsigned long motor_test_time = 0;
 int micro_step_scale = 1; // The micro step scale can be 1, 2, 4, or 16 based on
                           // the stepper driver data sheet
+
+const float EXTRDUER_CONVERSION = 2.086;  // The desired speed in mm/min * EXTRDUER_CONVERSION
+                                          // puts us into increment math
 
 // Nozzle Heater
 Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
@@ -53,13 +56,24 @@ Heater bed_heater(bed_heater_pin, bed_thermistor, BETA_BED, R_ZERO, bed_sample_t
 // Stepper Motor
 const int MIN_HIGH_PULSE = 200; // microseconds
 const int MIN_LOW_PULSE = 5; //microseconds
-// TODO: Add ramp information
+
+// betweenLayerRetract
+long num_interrupts = 0;
+bool bet_layer_retract_done = true;
+bool prev_bet_layer_retract = true;
+bool  S_retract = 0,
+      S_between_layer = 0,
+      S_extrude = 0,
+      S_wait = 1,
+      S_printing = 0;
+int direction = 0;
 
 // Inputs from robot
 const int MAN_EXTRUDE = 84,
           HEAT_BED = 83,
           HEAT_NOZZLE = 82,
-          PROG_FEED = 80,
+          PROG_FEED = 81,
+          BETWEEN_LAYER_RETRACT = 80,
           ALL_STOP = 79;
 
 // Outputs to robot
@@ -85,6 +99,7 @@ void setup() {
   pinMode(HEAT_BED, INPUT_PULLUP);
   pinMode(HEAT_NOZZLE, INPUT_PULLUP);
   pinMode(PROG_FEED, INPUT_PULLUP);
+  pinMode(BETWEEN_LAYER_RETRACT, INPUT_PULLUP);
   pinMode(ALL_STOP, INPUT_PULLUP);
 
   // Outputs to robot
@@ -164,7 +179,7 @@ void scaleMicroStep(){
 ISR(TIMER3_COMPA_vect){
   noInterrupts();
 
-  E0_velocity += E0_acceleration;
+  E0_velocity = target_velocity == 0 ? 0 : E0_acceleration + E0_velocity;
   if(E0_velocity > MAX_VELOCITY){
     E0_velocity = MAX_VELOCITY;
   }
@@ -199,7 +214,36 @@ ISR(TIMER3_COMPA_vect){
   else{
     E0_acceleration = 0;
   }
+  num_interrupts += 1;
   interrupts();
+}
+
+void checkStates(){
+  bool end_Layer = !digitalRead(BETWEEN_LAYER_RETRACT);
+  int retract_dist = 1810;
+  S_printing = (S_printing | (S_wait & digitalRead(PROG_FEED))) & !S_retract;
+  S_wait = (S_wait | (S_extrude & (num_interrupts > retract_dist))) & !S_printing;
+  S_extrude = (S_extrude | (S_between_layer & !end_Layer)) & !S_wait;
+  S_between_layer = (S_between_layer | (S_retract & (num_interrupts > retract_dist))) & !S_extrude;
+  S_retract = (S_retract | (S_printing & end_Layer)) & !S_between_layer;
+
+  if((S_wait & !S_printing) | (S_between_layer & !S_extrude)){
+    num_interrupts = 0;
+    target_velocity = 0;
+    E0_acceleration = 0;
+  }
+  else if(S_printing & !S_retract){
+    num_interrupts = 0;
+    if
+  }
+  else if(S_retract & !S_between_layer){
+    E0_acceleration = -MAX_ACCELERATION;
+    target_velocity = -MAX_VELOCITY;
+  }
+  else if(S_extrude & !S_wait){
+    E0_acceleration = MAX_ACCELERATION;
+    target_velocity = MAX_VELOCITY;
+  }
 }
 
 void setFans(){
@@ -266,13 +310,14 @@ void loop() {
     E0_heater.setTargetTemp(0);
   }
   if(!digitalRead(MAN_EXTRUDE)){
-    target_velocity = 100*2.086;
+    target_velocity = 100*EXTRDUER_CONVERSION;
   }
   else{
     target_velocity = 0;
   }
   E0_heater.compute();
   bed_heater.compute();
+  checkStates();
   setFans();
   report();
 }
