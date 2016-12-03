@@ -267,47 +267,80 @@ void checkStates(){
   S0 = (S0 || D1 || D2 || D3) && !(S_manual_extrude || S_printing);
   S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
-  S_printing = (S_printing || (S0 && prog_feed)) && !(D2 || S_retract);
+  S_printing = (S_printing || (S0 && prog_feed) || (S_extrude && (num_interrupts >= retract_dist))) && !(D2 || S_retract);
   S_retract = (S_retract || (S_printing && between_layer_retract)) && !S_wait;
-  S_wait = (S_wait || (num_interrupts >= retract_dist)) && !(S_extrude || D2);
+  S_wait = (S_wait || (S_retract && (num_interrupts >= retract_dist))) && !(S_extrude || D2);
   S_extrude = (S_extrude || (S_wait && !between_layer_retract)) && !S_printing;
   D2 = (D2 ||((S_wait || S_printing) && !prog_feed)) && !S0;
-  D3 = (D3 || (S_ALL_STOP && !(prog_feed && heat_bed && heat_nozzle
-                          && between_layer_retract && all_stop))) && !S0;
-  S_ALL_STOP = (S_ALL_STOP || all_stop) & !D3;
+  D3 = (D3 || (S_ALL_STOP && !(prog_feed || heat_bed || heat_nozzle || between_layer_retract || all_stop))) && !S0;
+  S_ALL_STOP = (S_ALL_STOP || all_stop) && !D3;
   if(S_ALL_STOP){
-    S0  = S_manual_extrude = D1 = S_printing = S_retract = S_wait = S_extrude
-        = D2 = D3 = 0;
+    S0  = 0;
+    S_manual_extrude = 0;
+    D1 = 0;
+    S_printing = 0;
+    S_retract = 0;
+    S_wait = 0;
+    S_extrude = 0;
+    D2 = 0;
+    D3 = 0;
     E0_heater.setTargetTemp(0);
     bed_heater.setTargetTemp(0);
     target_velocity = 0;
     currState = "ALL_STOP";
   }
-  else if(S0 && !(S_manual_extrude || S_printing)){
-    target_velocity = 0;
-    currState = "S0";
-  }
-  else if(S_manual_extrude && !D1){
-    target_velocity = 100 * VELOCITY_CONVERSION; // Manual extrude speed
-    currState = "Manul Extrude";
-  }
-  else if(S_printing && !(D2 || S_retract)){
-    num_interrupts = 0;
-    target_velocity = PROGRAM_FEED_RATE;
-    currState = "Printing";
-  }
-  else if(S_retract && !S_wait){
-    target_velocity = -MAX_VELOCITY;
-    currState = "Retract";
-  }
-  else if(S_wait && !(S_extrude || D2)){
-    num_interrupts = 0;
-    target_velocity = 0;
-    currState = "Wait";
-  }
-  else if(S_extrude && !S_printing){
-    target_velocity = MAX_VELOCITY;
-    currState = "Extrude";
+  else{
+    if(S0 && !(S_manual_extrude || S_printing)){
+      target_velocity = 0;
+      currState = "S0";
+    }
+    else if(S_manual_extrude && !D1){
+      target_velocity = 100 * VELOCITY_CONVERSION; // Manual extrude speed
+      currState = "Manul Extrude";
+    }
+    else if(S_printing && !(D2 || S_retract)){
+      num_interrupts = 0;
+      target_velocity = PROGRAM_FEED_RATE;
+      currState = "Printing";
+    }
+    else if(S_retract && !S_wait){
+      target_velocity = -MAX_VELOCITY;
+      currState = "Retract";
+    }
+    else if(S_wait && !(S_extrude || D2)){
+      num_interrupts = 0;
+      target_velocity = 0;
+      currState = "Wait";
+    }
+    else if(S_extrude && !S_printing){
+      target_velocity = MAX_VELOCITY;
+      currState = "Extrude";
+    }
+
+    if(heat_nozzle){
+      E0_heater.setTargetTemp(190);
+      if(E0_heater.atTemp()){
+        digitalWrite(NOZZLE_AT_TEMP, HIGH);
+      }
+      else{
+        digitalWrite(NOZZLE_AT_TEMP, LOW);
+      }
+    }
+    else{
+      E0_heater.setTargetTemp(0);
+    }
+    if(heat_bed){
+      bed_heater.setTargetTemp(50);
+      if(bed_heater.atTemp()){
+        digitalWrite(BED_AT_TEMP, HIGH);
+      }
+      else{
+        digitalWrite(BED_AT_TEMP, LOW);
+      }
+    }
+    else{
+      bed_heater.setTargetTemp(0);
+    }
   }
 }
 
