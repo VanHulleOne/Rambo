@@ -12,6 +12,7 @@ class Heater{
     void setTargetTemp(float set_p);
     bool atTemp();
     float getTargetTemp();
+    float getOutput();
 
   private:
     int HEAT_PIN;

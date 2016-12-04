@@ -65,6 +65,10 @@ float Heater::getTargetTemp(){
   return targetTemp;
 }
 
+float Heater::getOutput(){
+  return output;
+}
+
 bool Heater::atTemp(){
   if(targetTemp - getCurrTemp() < 5){
     return true;
