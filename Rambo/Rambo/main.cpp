@@ -51,7 +51,7 @@ const int FAN_SAMPLE_TIME = 2000;
 // Bed Heater
 const int bed_heater_pin = 3;
 const int BETA_BED = 3950;    // Not sure this is correct
-const int bed_thermistor = 56;
+const int bed_thermistor = 1;
 const int bed_sample_time = 1000; // milliseconds
 Heater bed_heater(bed_heater_pin, bed_thermistor, BETA_BED, R_ZERO, bed_sample_time, "Bed");
 
@@ -353,7 +353,7 @@ void setFans(){
   unsigned long now = millis();
   if(now - last_fan_time > FAN_SAMPLE_TIME){
     float currTemp = E0_heater.getCurrTemp();
-    if (currTemp > 100) {
+    if (currTemp > 50) {
       analogWrite(small_fan, 255);
     }
     if(currTemp > 180){
@@ -391,10 +391,16 @@ void report(){
     Serial.println(E0_acceleration);
     Serial.print("Curr State: ");
     Serial.println(currState);
-    Serial.print("Targ Temp: ");
+    Serial.print("Noz Targ Temp: ");
     Serial.print(E0_heater.getTargetTemp());
     Serial.print("\tCurr Temp: ");
     Serial.println(E0_heater.getCurrTemp());
+    Serial.print("Bed Targ Temp: ");
+    Serial.print(bed_heater.getTargetTemp());
+    Serial.print("\tCurr Temp: ");
+    Serial.print(bed_heater.getCurrTemp());
+    Serial.print("\tOutput: ");
+    Serial.println(bed_heater.getOutput());
     Serial.println();
 
     last_report_time = now;
