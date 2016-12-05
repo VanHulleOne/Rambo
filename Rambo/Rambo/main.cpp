@@ -319,9 +319,9 @@ void checkStates(){
       target_velocity = MAX_VELOCITY;
       currState = "Extrude";
     }
-
+// TODO: Move this code into Heater modules
     if(heat_nozzle){
-      E0_heater.setTargetTemp(190);
+      E0_heater.setTargetTemp(NOZZLE_TEMP);
       if(E0_heater.atTemp()){
         digitalWrite(NOZZLE_AT_TEMP, HIGH);
       }
@@ -333,7 +333,7 @@ void checkStates(){
       E0_heater.setTargetTemp(0);
     }
     if(heat_bed){
-      bed_heater.setTargetTemp(50);
+      bed_heater.setTargetTemp(BED_TEMP);
       if(bed_heater.atTemp()){
         digitalWrite(BED_AT_TEMP, HIGH);
       }
