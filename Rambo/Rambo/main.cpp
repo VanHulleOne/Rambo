@@ -63,8 +63,6 @@ const int BED_TEMP = 70; // Hard coded temp in C for bed
 // betweenLayerRetract
 const int retract_dist = 4*MM_TO_STEPS; // retract this many steps between layers
 long num_steps = 0;
-bool bet_layer_retract_done = true;
-bool prev_bet_layer_retract = true;
 bool  S_retract = 0,
       S_between_layer = 0,
       S_prime = 0,
