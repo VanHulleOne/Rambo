@@ -274,7 +274,8 @@ void checkStates(){
   S_wait = (S_wait || (S_retract && (num_steps >= retract_dist))) && !(S_extrude || D2);
   S_extrude = (S_extrude || (S_wait && !between_layer_retract)) && !S_printing;
   D2 = (D2 ||((S_wait || S_printing) && !prog_feed)) && !S0;
-  D3 = (D3 || (S_ALL_STOP && !(prog_feed || heat_bed || heat_nozzle || between_layer_retract || all_stop))) && !S0;
+  D3 = (D3 || (S_ALL_STOP && !(prog_feed || heat_bed || heat_nozzle
+            || between_layer_retract || all_stop || man_extrude))) && !S0;
   S_ALL_STOP = (S_ALL_STOP || all_stop) && !D3;
   if(S_ALL_STOP){
     S0  = 0;
