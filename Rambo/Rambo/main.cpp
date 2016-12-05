@@ -363,23 +363,6 @@ void setFans(){
   }
 }
 
-void testMotor(){
-  noInterrupts();
-  unsigned long ellapsed = millis() - motor_test_time;
-  if((E0_velocity >= MAX_VELOCITY || E0_velocity <= -MAX_VELOCITY) && motor_test_time==0){
-    motor_test_time = millis();
-    // E0_acceleration *= -1;
-  }
-  else if(motor_test_time >0 && ellapsed < 1500){
-
-  }
-  else if(motor_test_time>0 && ellapsed >= 1500){
-    motor_test_time = 0;
-    E0_acceleration *= -1;
-  }
-  interrupts();
-}
-
 void report(){
   unsigned long now = millis();
   if(now - last_report_time > 1000){
