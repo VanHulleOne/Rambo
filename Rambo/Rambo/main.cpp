@@ -309,7 +309,7 @@ void checkStates(){
       currState = "S0";
     }
     else if(S_manual_extrude && !D1){
-      target_velocity = 100 * VELOCITY_CONVERSION; // Manual extrude speed
+      target_velocity = MANUAL_EX_RATE;
       currState = "Manul Extrude";
     }
     else if(S_auto && !(D2 || S_retract || S_program_extrude)){
