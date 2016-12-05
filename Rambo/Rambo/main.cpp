@@ -21,11 +21,16 @@ const int BETA_NOZZLE = 4267; // Semitec 104GT-2 Thermistor
 const long R_ZERO = 100000; // Resistance at 25C
 const int E0_SAMPLE_TIME = 500; // milliseconds
 const int LED_PIN = 13;
+const int MINIMUM_VELOCITY = 10; // Based on testing the motor does not perfrom
+                                  // When moving slower than this
 const int MAX_VELOCITY = 10430; // 0.3183 increments/cycle * 2^15 = 10430
 const int MAX_ACCELERATION = 4; // 1.2207*10^-4 * 2^15 = 4
-const float VELOCITY_CONVERSION = 2.086;  // The desired speed in mm/min * EXTRDUER_CONVERSION
+const float VELOCITY_CONVERSION = 2.0861;  // The desired speed in mm/min * EXTRDUER_CONVERSION
                                           // puts us into increment math
+const int MM_TO_STEPS = 38.197; // mm of extrusion * MM_TO_STEPS gives you the
+                                // the required number of steps to move that many mm.
 const int PROGRAM_FEED_RATE = 30 * VELOCITY_CONVERSION;
+const int MANUAL_EX_RATE = 75 * VELOCITY_CONVERSION;
 int E0_acceleration = 0;
 int E0_velocity = 0;
 signed int E0_position = 0;
@@ -33,11 +38,6 @@ int target_velocity = 0;
 unsigned long motor_test_time = 0;
 int micro_step_scale = 1; // The micro step scale can be 1, 2, 4, or 16 based on
                           // the stepper driver data sheet
-
-
-
-// Nozzle Heater
-Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
 
 // Digipot
 const int slave_select_pin = 38;
@@ -55,13 +55,14 @@ const int bed_thermistor = 1;
 const int bed_sample_time = 1000; // milliseconds
 Heater bed_heater(bed_heater_pin, bed_thermistor, BETA_BED, R_ZERO, bed_sample_time, "Bed");
 
-// Stepper Motor
-const int MIN_HIGH_PULSE = 200; // microseconds
-const int MIN_LOW_PULSE = 5; //microseconds
+// Nozzle Heater
+Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
+const int NOZZLE_TEMP = 220; // Hard coded temp in C for nozzle
+const int BED_TEMP = 70; // Hard coded temp in C for bed
 
 // betweenLayerRetract
-const int retract_dist = 1810; // TODO: create constant for converting mm to dist
-long num_interrupts = 0;
+const int retract_dist = 4*MM_TO_STEPS; // retract this many steps between layers
+long num_steps = 0;
 bool bet_layer_retract_done = true;
 bool prev_bet_layer_retract = true;
 bool  S_retract = 0,
@@ -199,7 +200,7 @@ ISR(TIMER3_COMPA_vect){
 
   int velocity_error = target_velocity - E0_velocity;
 
-  if(target_velocity == 0){ // If we are not supposed to be moving
+  if(abs(target_velocity) < MINIMUM_VELOCITY){ // If we are not supposed to be moving
     // Note: This code does not decelerate to 0 if target_velocity == 0
     E0_velocity = 0;
     E0_acceleration = 0;
@@ -243,6 +244,7 @@ ISR(TIMER3_COMPA_vect){
     digitalWrite(E0_step, HIGH);
     delayMicroseconds(2);
     digitalWrite(E0_step, LOW);
+    num_steps += 1;
   }
   if(target_velocity - E0_velocity > MAX_ACCELERATION){
     E0_acceleration = MAX_ACCELERATION;
@@ -253,7 +255,6 @@ ISR(TIMER3_COMPA_vect){
   else{
     E0_acceleration = 0;
   }
-  num_interrupts += 1;
   interrupts();
 }
 
@@ -268,9 +269,9 @@ void checkStates(){
   S0 = (S0 || D1 || D2 || D3) && !(S_manual_extrude || S_printing);
   S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
-  S_printing = (S_printing || (S0 && prog_feed) || (S_extrude && (num_interrupts >= retract_dist))) && !(D2 || S_retract);
+  S_printing = (S_printing || (S0 && prog_feed) || (S_extrude && (num_steps >= retract_dist))) && !(D2 || S_retract);
   S_retract = (S_retract || (S_printing && between_layer_retract)) && !S_wait;
-  S_wait = (S_wait || (S_retract && (num_interrupts >= retract_dist))) && !(S_extrude || D2);
+  S_wait = (S_wait || (S_retract && (num_steps >= retract_dist))) && !(S_extrude || D2);
   S_extrude = (S_extrude || (S_wait && !between_layer_retract)) && !S_printing;
   D2 = (D2 ||((S_wait || S_printing) && !prog_feed)) && !S0;
   D3 = (D3 || (S_ALL_STOP && !(prog_feed || heat_bed || heat_nozzle || between_layer_retract || all_stop))) && !S0;
@@ -300,7 +301,7 @@ void checkStates(){
       currState = "Manul Extrude";
     }
     else if(S_printing && !(D2 || S_retract)){
-      num_interrupts = 0;
+      num_steps = 0;
       target_velocity = PROGRAM_FEED_RATE;
       currState = "Printing";
     }
@@ -309,7 +310,7 @@ void checkStates(){
       currState = "Retract";
     }
     else if(S_wait && !(S_extrude || D2)){
-      num_interrupts = 0;
+      num_steps = 0;
       target_velocity = 0;
       currState = "Wait";
     }
