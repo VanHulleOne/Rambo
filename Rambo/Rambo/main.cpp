@@ -67,28 +67,32 @@ bool bet_layer_retract_done = true;
 bool prev_bet_layer_retract = true;
 bool  S_retract = 0,
       S_between_layer = 0,
-      S_extrude = 0,
+      S_prime = 0,
       S_wait = 0,
-      S_printing = 0,
+      S_auto = 0,
       S_manual_extrude = 0,
+      S_program_extrude = 0,
       S_ALL_STOP = 0,
       S0 = 1,
       D1 = 0,
       D2 = 0,
-      D3 = 0;
+      D3 = 0,
+      D4 = 0;
 int direction = 0;
 
 String currState = "";
 
 // Inputs from robot
-const int MAN_EXTRUDE = 84,
+const int AUTO_MODE = 85,
+          MAN_EXTRUDE = 84,
           HEAT_BED = 83,
           HEAT_NOZZLE = 82,
           PROG_FEED = 81,
           BETWEEN_LAYER_RETRACT = 80,
           ALL_STOP = 79;
 
-bool man_extrude,
+bool auto_mode,
+    man_extrude,
     heat_bed,
     heat_nozzle,
     prog_feed,
@@ -114,12 +118,14 @@ void setup() {
   pinMode(large_fan, OUTPUT);
 
   // Inputs from robot
+  pinMode(AUTO_MODE, INPUT_PULLUP);
   pinMode(MAN_EXTRUDE, INPUT_PULLUP);
   pinMode(HEAT_BED, INPUT_PULLUP);
   pinMode(HEAT_NOZZLE, INPUT_PULLUP);
   pinMode(PROG_FEED, INPUT_PULLUP);
   pinMode(BETWEEN_LAYER_RETRACT, INPUT_PULLUP);
   pinMode(ALL_STOP, INPUT_PULLUP);
+
 
   // Outputs to robot
   pinMode(BED_AT_TEMP, OUTPUT);
@@ -259,6 +265,7 @@ ISR(TIMER3_COMPA_vect){
 }
 
 void checkStates(){
+  auto_mode = !digitalRead(AUTO_MODE);
   man_extrude = !digitalRead(MAN_EXTRUDE);
   heat_bed = !digitalRead(HEAT_BED);
   heat_nozzle = !digitalRead(HEAT_NOZZLE);
@@ -266,34 +273,40 @@ void checkStates(){
   between_layer_retract = !digitalRead(BETWEEN_LAYER_RETRACT);
   all_stop = !digitalRead(ALL_STOP);
 
-  S0 = (S0 || D1 || D2 || D3) && !(S_manual_extrude || S_printing);
+  S0 = (S0 || D1 || D2 || D3 ||(S_wait && !auto_mode)) && !(S_manual_extrude || S_auto);
   S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
-  S_printing = (S_printing || (S0 && prog_feed) || (S_extrude && (num_steps >= retract_dist))) && !(D2 || S_retract);
-  S_retract = (S_retract || (S_printing && between_layer_retract)) && !S_wait;
-  S_wait = (S_wait || (S_retract && (num_steps >= retract_dist))) && !(S_extrude || D2);
-  S_extrude = (S_extrude || (S_wait && !between_layer_retract)) && !S_printing;
-  D2 = (D2 ||((S_wait || S_printing) && !prog_feed)) && !S0;
+  S_auto = (S_auto || D4 || (S0 && auto_mode) || (S_prime && (num_steps >= retract_dist)))
+            && !(D2 || S_retract || S_program_extrude);
+  S_retract = (S_retract || (S_auto && between_layer_retract)) && !S_wait;
+  S_wait = (S_wait || (S_retract && (num_steps >= retract_dist))) && !(S_prime || S0);
+  S_prime = (S_prime || (S_wait && !between_layer_retract)) && !S_auto;
+  S_program_extrude = (S_program_extrude || (S_auto && prog_feed)) && !D4;
+  D2 = (D2 ||(S_auto && !auto_mode)) && !S0;
   D3 = (D3 || (S_ALL_STOP && !(prog_feed || heat_bed || heat_nozzle
-            || between_layer_retract || all_stop || man_extrude))) && !S0;
+            || between_layer_retract || all_stop || man_extrude || auto_mode))) && !S0;
+  D4 = (D4 || (S_program_extrude && !prog_feed)) && !S_auto;
   S_ALL_STOP = (S_ALL_STOP || all_stop) && !D3;
+
   if(S_ALL_STOP){
     S0  = 0;
     S_manual_extrude = 0;
     D1 = 0;
-    S_printing = 0;
+    S_auto = 0;
+    S_program_extrude = 0;
     S_retract = 0;
     S_wait = 0;
-    S_extrude = 0;
+    S_prime = 0;
     D2 = 0;
     D3 = 0;
+    D4 = 0;
     E0_heater.setTargetTemp(0);
     bed_heater.setTargetTemp(0);
     target_velocity = 0;
     currState = "ALL_STOP";
   }
   else{
-    if(S0 && !(S_manual_extrude || S_printing)){
+    if(S0 && !(S_manual_extrude || S_auto)){
       target_velocity = 0;
       currState = "S0";
     }
@@ -301,23 +314,27 @@ void checkStates(){
       target_velocity = 100 * VELOCITY_CONVERSION; // Manual extrude speed
       currState = "Manul Extrude";
     }
-    else if(S_printing && !(D2 || S_retract)){
+    else if(S_auto && !(D2 || S_retract || S_program_extrude)){
       num_steps = 0;
-      target_velocity = PROGRAM_FEED_RATE;
-      currState = "Printing";
+      target_velocity = 0;
+      currState = "Auto mode";
     }
     else if(S_retract && !S_wait){
       target_velocity = -MAX_VELOCITY;
       currState = "Retract";
     }
-    else if(S_wait && !(S_extrude || D2)){
+    else if(S_wait && !(S_prime || S0)){
       num_steps = 0;
       target_velocity = 0;
       currState = "Wait";
     }
-    else if(S_extrude && !S_printing){
+    else if(S_prime && !S_auto){
       target_velocity = MAX_VELOCITY;
-      currState = "Extrude";
+      currState = "Prime";
+    }
+    else if(S_program_extrude && !D4){
+      target_velocity = PROGRAM_FEED_RATE;
+      currState = "Program Extrude";
     }
 // TODO: Move this code into Heater modules
     if(heat_nozzle){
