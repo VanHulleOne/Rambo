@@ -24,7 +24,7 @@ const int LED_PIN = 13;
 const int MINIMUM_VELOCITY = 10; // Based on testing the motor does not perfrom
                                   // When moving slower than this
 const int MAX_VELOCITY = 10430; // 0.3183 increments/cycle * 2^15 = 10430
-const int MAX_ACCELERATION = 4; // 1.2207*10^-4 * 2^15 = 4
+const int MAX_ACCELERATION = 3; // From testing any value higher than 4 doesn't work reliably
 const float VELOCITY_CONVERSION = 2.0861;  // The desired speed in mm/min * EXTRDUER_CONVERSION
                                           // puts us into increment math
 const int MM_TO_STEPS = 38.197; // mm of extrusion * MM_TO_STEPS gives you the
