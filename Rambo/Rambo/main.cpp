@@ -29,7 +29,7 @@ const float VELOCITY_CONVERSION = 2.0861;  // The desired speed in mm/min * EXTR
                                           // puts us into increment math
 const int MM_TO_STEPS = 38.197; // mm of extrusion * MM_TO_STEPS gives you the
                                 // the required number of steps to move that many mm.
-const int PROGRAM_FEED_RATE = 30 * VELOCITY_CONVERSION;
+const int PROGRAM_FEED_RATE = 37 * VELOCITY_CONVERSION;
 const int MANUAL_EX_RATE = 75 * VELOCITY_CONVERSION;
 int E0_acceleration = 0;
 int E0_velocity = 0;
