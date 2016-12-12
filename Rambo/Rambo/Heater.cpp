@@ -1,8 +1,9 @@
 #include "Heater.h"
 
-Heater::Heater(int heatPin, int thermPin, int beta, float r_zero, int sample_time, String id){
+Heater::Heater(int heatPin, int thermPin, int atTempPin, int beta, float r_zero, int sample_time, String id){
   HEAT_PIN = heatPin;
   THERM_PIN = thermPin;
+  AT_TEMP_PIN = atTempPin;
   BETA = beta;
   R_ZERO = r_zero;
   SAMPLE_TIME = sample_time;
@@ -41,9 +42,11 @@ void Heater::compute(){
 
     if(targetTemp - currTemp < 5 && targetTemp != 0){
       atTemp = true;
+      digitalWrite(AT_TEMP_PIN, HIGH);
     }
     else{
       atTemp = false;
+      digitalWrite(AT_TEMP_PIN, LOW);
     }
 
     /*Remember some variables for next time*/

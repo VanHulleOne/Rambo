@@ -25,6 +25,19 @@ const int BED_TEMP = 70; // Temperature in degrees C for the bed
   beyond this point should only be done if you know what you are doing.
 */
 
+// Inputs from robot
+const int AUTO_MODE = 85,
+          MAN_EXTRUDE = 84,
+          HEAT_BED = 83,
+          HEAT_NOZZLE = 82,
+          PROG_FEED = 81,
+          BETWEEN_LAYER_RETRACT = 80,
+          ALL_STOP = 79;
+
+// Outputs to robot
+const int BED_AT_TEMP = 71,
+          NOZZLE_AT_TEMP = 72;
+
 // E0 Main extruder
 const int E0_enable = 26; // low == enabled
 const int E0_step = 34;
@@ -36,10 +49,9 @@ const int E0_digipot_channel = 0;
 const float STEPS_PER_MM = 51.833 * EX_CORRECTION_FACTOR; // mm of extrusion * STEPS_PER_MM gives you the
                                                         // the required number of steps to move that many mm.
 const int INTERRUPT_RATE = 10000; //Hz for interrupt rate
-// 1[mm/min] * STEPS_PER_MM[steps/min] * 1[min]/60[sec] * 1[sec]/INTERRUPT_RATE[interrupt] * 2^15[increments/step]
-const float VELOCITY_CONVERSION = STEPS_PER_MM * (2 << 15) / (60 * INTERRUPT_RATE); // [increments/interrupt] for determining velocity
+// 1[mm/min] * STEPS_PER_MM[steps/min] * 1[min]/60[sec] * 1[sec]/INTERRUPT_RATE[interrupt] * 2^15[increments/step] = [increments/interrupt]
+const float VELOCITY_CONVERSION = 5.662; //STEPS_PER_MM * (float) (2 << 15) / 60.0 / INTERRUPT_RATE; // [increments/interrupt] for determining velocity
 
-// const float E0_steps_per_mm = 38.197;
 const int E0_heater_pin = 9;
 const int E0_digipot_setting = 100;
 const bool E0_EXTRUDE = 0;
@@ -78,10 +90,10 @@ const int bed_heater_pin = 3;
 const int BETA_BED = 3950;    // Not sure this is correct
 const int bed_thermistor = 1;
 const int bed_sample_time = 1000; // milliseconds
-Heater bed_heater(bed_heater_pin, bed_thermistor, BETA_BED, R_ZERO, bed_sample_time, "Bed");
+Heater bed_heater(bed_heater_pin, bed_thermistor, BED_AT_TEMP, BETA_BED, R_ZERO, bed_sample_time, "Bed");
 
 // Nozzle Heater
-Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
+Heater E0_heater(E0_heater_pin, E0_thermistor, NOZZLE_AT_TEMP, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
 
 // betweenLayerRetract
 const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM; // retract this many steps between layers
@@ -102,19 +114,6 @@ bool  S_retract = 0,
 int direction = 0;
 
 String currState = "";
-
-// Inputs from robot
-const int AUTO_MODE = 85,
-          MAN_EXTRUDE = 84,
-          HEAT_BED = 83,
-          HEAT_NOZZLE = 82,
-          PROG_FEED = 81,
-          BETWEEN_LAYER_RETRACT = 80,
-          ALL_STOP = 79;
-
-// Outputs to robot
-const int BED_AT_TEMP = 71,
-          NOZZLE_AT_TEMP = 72;
 
 // Report
 unsigned long last_report_time = 0;
@@ -352,24 +351,12 @@ void checkStates(){
 // TODO: Move this code into Heater modules
     if(heat_nozzle){
       E0_heater.setTargetTemp(NOZZLE_TEMP);
-      if(E0_heater.getAtTemp()){
-        digitalWrite(NOZZLE_AT_TEMP, HIGH);
-      }
-      else{
-        digitalWrite(NOZZLE_AT_TEMP, LOW);
-      }
     }
     else{
       E0_heater.setTargetTemp(0);
     }
     if(heat_bed){
       bed_heater.setTargetTemp(BED_TEMP);
-      if(bed_heater.getAtTemp()){
-        digitalWrite(BED_AT_TEMP, HIGH);
-      }
-      else{
-        digitalWrite(BED_AT_TEMP, LOW);
-      }
     }
     else{
       bed_heater.setTargetTemp(0);

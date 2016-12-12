@@ -5,7 +5,7 @@
 
 class Heater{
   public:
-    Heater(int heatPin, int thermPin, int beta, float r_zero, int sample_time, String id);
+    Heater(int heatPin, int thermPin, int atTempPin, int beta, float r_zero, int sample_time, String id);
     void compute();
     float getCurrTemp();
     void setTunings(float Kp, float Ki, float Kd);
@@ -16,8 +16,10 @@ class Heater{
     String message();
 
   private:
-    int HEAT_PIN;
-    int THERM_PIN;
+    int HEAT_PIN,
+        THERM_PIN,
+        AT_TEMP_PIN;
+
 
     String ID;
 
