@@ -16,6 +16,7 @@ const int _EXT_FEED_RATE = 37;  // The feed rate in mm/min at which you want
 const float EX_CORRECTION_FACTOR = 1; // If the length of filament being extruded
                                       // is not correct you can adjust it here
 
+const int _RETRACT_DIST = 3; // [mm] to retract filament at layer changes are far moves
 const int NOZZLE_TEMP = 220; // Temperature in degrees C for the nozzle
 const int BED_TEMP = 70; // Temperature in degrees C for the bed
 
@@ -70,7 +71,7 @@ const int slave_select_pin = 38;
 const int small_fan = 5;
 const int large_fan = 8;
 unsigned long last_fan_time = 0;
-const int FAN_SAMPLE_TIME = 2000;
+const int FAN_SAMPLE_TIME = 2000; // milliseconds
 
 // Bed Heater
 const int bed_heater_pin = 3;
@@ -83,7 +84,7 @@ Heater bed_heater(bed_heater_pin, bed_thermistor, BETA_BED, R_ZERO, bed_sample_t
 Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
 
 // betweenLayerRetract
-const int retract_dist = 3*STEPS_PER_MM; // retract this many steps between layers
+const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM; // retract this many steps between layers
 long num_steps = 0;
 bool  S_retract = 0,
       S_between_layer = 0,
@@ -110,14 +111,6 @@ const int AUTO_MODE = 85,
           PROG_FEED = 81,
           BETWEEN_LAYER_RETRACT = 80,
           ALL_STOP = 79;
-
-bool auto_mode,
-    man_extrude,
-    heat_bed,
-    heat_nozzle,
-    prog_feed,
-    between_layer_retract,
-    all_stop;
 
 // Outputs to robot
 const int BED_AT_TEMP = 71,
@@ -285,21 +278,21 @@ ISR(TIMER3_COMPA_vect){
 }
 
 void checkStates(){
-  auto_mode = !digitalRead(AUTO_MODE);
-  man_extrude = !digitalRead(MAN_EXTRUDE);
-  heat_bed = !digitalRead(HEAT_BED);
-  heat_nozzle = !digitalRead(HEAT_NOZZLE);
-  prog_feed = !digitalRead(PROG_FEED);
-  between_layer_retract = !digitalRead(BETWEEN_LAYER_RETRACT);
-  all_stop = !digitalRead(ALL_STOP);
+  bool  auto_mode = !digitalRead(AUTO_MODE),
+        man_extrude = !digitalRead(MAN_EXTRUDE),
+        heat_bed = !digitalRead(HEAT_BED),
+        heat_nozzle = !digitalRead(HEAT_NOZZLE),
+        prog_feed = !digitalRead(PROG_FEED),
+        between_layer_retract = !digitalRead(BETWEEN_LAYER_RETRACT),
+        all_stop = !digitalRead(ALL_STOP);
 
   S0 = (S0 || D1 || D2 || D3 ||(S_wait && !auto_mode)) && !(S_manual_extrude || S_auto);
   S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
-  S_auto = (S_auto || D4 || (S0 && auto_mode && !between_layer_retract) || (S_prime && (num_steps >= retract_dist)))
+  S_auto = (S_auto || D4 || (S0 && auto_mode && !between_layer_retract) || (S_prime && (num_steps >= RETRACT_DIST)))
             && !(D2 || S_retract || S_program_extrude);
   S_retract = (S_retract || (S_auto && between_layer_retract)) && !S_wait;
-  S_wait = (S_wait || (S_retract && (num_steps >= retract_dist))) && !(S_prime || S0);
+  S_wait = (S_wait || (S_retract && (num_steps >= RETRACT_DIST))) && !(S_prime || S0);
   S_prime = (S_prime || (S_wait && !between_layer_retract)) && !S_auto;
   S_program_extrude = (S_program_extrude || (S_auto && prog_feed)) && !D4;
   D2 = (D2 ||(S_auto && !auto_mode)) && !S0;
@@ -334,7 +327,7 @@ void checkStates(){
       target_velocity = MANUAL_EX_RATE;
       currState = "Manul Extrude";
     }
-    else if(S_auto){ // && !(D2 || S_retract || S_program_extrude)){
+    else if(S_auto){
       num_steps = 0;
       target_velocity = 0;
       currState = "Auto mode";
