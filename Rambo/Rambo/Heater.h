@@ -10,9 +10,10 @@ class Heater{
     float getCurrTemp();
     void setTunings(float Kp, float Ki, float Kd);
     void setTargetTemp(float set_p);
-    bool atTemp();
+    bool getAtTemp();
     float getTargetTemp();
     float getOutput();
+    String message();
 
   private:
     int HEAT_PIN;
@@ -21,11 +22,11 @@ class Heater{
     String ID;
 
     unsigned long lastTime;
-    float input;
     float output;
     float targetTemp;
     float I_term;
-    float lastInput;
+    float lastTemp;
+    bool atTemp;
     float kp;
     float ki;
     float kd;
