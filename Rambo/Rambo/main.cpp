@@ -11,7 +11,7 @@ const int E0_dir = 43;
 const int E0_MS1 = 65;
 const int E0_MS2 = 66;
 const int E0_digipot_channel = 0;
-const float E0_steps_per_mm = 38.197;
+// const float E0_steps_per_mm = 38.197;
 const int E0_heater_pin = 9;
 const int E0_digipot_setting = 100;
 const bool E0_EXTRUDE = 0;
@@ -24,10 +24,10 @@ const int LED_PIN = 13;
 const int MINIMUM_VELOCITY = 10; // Based on testing the motor does not perfrom
                                   // When moving slower than this
 const int MAX_VELOCITY = 10430; // 0.3183 increments/cycle * 2^15 = 10430
-const int MAX_ACCELERATION = 3; // From testing any value higher than 4 doesn't work reliably
-const float VELOCITY_CONVERSION = 2.0861;  // The desired speed in mm/min * EXTRDUER_CONVERSION
+const int MAX_ACCELERATION = 2; // From testing any value higher than 4 doesn't work reliably
+const float VELOCITY_CONVERSION = 2.0861*1.357;  // The desired speed in mm/min * EXTRDUER_CONVERSION
                                           // puts us into increment math
-const int MM_TO_STEPS = 38.197; // mm of extrusion * MM_TO_STEPS gives you the
+const int STEPS_PER_MM = 51.833; // mm of extrusion * STEPS_PER_MM gives you the
                                 // the required number of steps to move that many mm.
 const int PROGRAM_FEED_RATE = 37 * VELOCITY_CONVERSION;
 const int MANUAL_EX_RATE = 75 * VELOCITY_CONVERSION;
@@ -61,7 +61,7 @@ const int NOZZLE_TEMP = 220; // Hard coded temp in C for nozzle
 const int BED_TEMP = 70; // Hard coded temp in C for bed
 
 // betweenLayerRetract
-const int retract_dist = 4*MM_TO_STEPS; // retract this many steps between layers
+const int retract_dist = 3*STEPS_PER_MM; // retract this many steps between layers
 long num_steps = 0;
 bool  S_retract = 0,
       S_between_layer = 0,
