@@ -22,26 +22,32 @@ Heater::Heater(int heatPin, int thermPin, int beta, float r_zero, int sample_tim
 void Heater::compute(){
   unsigned long now = millis();
   int timeChange = (now - lastTime);
+  float currTemp = 0;
   if(timeChange >= SAMPLE_TIME){
-    input = getCurrTemp();
+    currTemp = getCurrTemp();
     /*Compute all the working error variables*/
-    float error = targetTemp - input;
+    float error = targetTemp - currTemp;
     I_term += (ki * error);
     if(I_term > OUT_MAX) I_term = OUT_MAX;
     else if(I_term < OUT_MIN) I_term = OUT_MIN;
-    float dInput = (input - lastInput);
+    float dInput = (currTemp - lastTemp);
 
     /*Compute PID Output*/
     output = kp * error + I_term- kd * dInput;
     if(output > OUT_MAX) output = OUT_MAX;
     else if(output < OUT_MIN) output = OUT_MIN;
 
-//    String out = "Output: " + String(Output);
-//    Serial.println(out);
     analogWrite(HEAT_PIN, output);
 
+    if(targetTemp - currTemp < 5 && targetTemp != 0){
+      atTemp = true;
+    }
+    else{
+      atTemp = false;
+    }
+
     /*Remember some variables for next time*/
-    lastInput = input;
+    lastTemp = currTemp;
     lastTime = now;
   }
 }
@@ -69,9 +75,17 @@ float Heater::getOutput(){
   return output;
 }
 
-bool Heater::atTemp(){
-  if(targetTemp - getCurrTemp() < 5){
-    return true;
-  }
-  return false;
+bool Heater::getAtTemp(){
+  return atTemp;
+}
+
+String Heater::message(){
+  String s = ID + " Targ Temo: ";
+  s += String(targetTemp);
+  s += "\tCurr Temp: ";
+  s += String(lastTemp);
+  s += "\tOutput: ";
+  s += String(output);
+  s += "\n";
+  return s;
 }

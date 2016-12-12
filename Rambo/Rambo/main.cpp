@@ -4,6 +4,26 @@
 #include <math.h>
 #include "Heater.h"
 
+/**
+  The following set of variables are set apart so they can be quickly and easily
+  changed by the user. If you plan to change variables outside of this selection
+  you must be sure you know what you're doing.
+*/
+const int _EXT_FEED_RATE = 37;  // The feed rate in mm/min at which you want
+                                // the extruder to run.
+                                // SR * layer_height * nozzle_dia * robot_travel_speed / filament_area
+
+const float EX_CORRECTION_FACTOR = 1; // If the length of filament being extruded
+                                      // is not correct you can adjust it here
+
+const int NOZZLE_TEMP = 220; // Temperature in degrees C for the nozzle
+const int BED_TEMP = 70; // Temperature in degrees C for the bed
+
+/**
+  This is the end of the simple adjustable parameters. Any variable change
+  beyond this point should only be done if you know what you are doing.
+*/
+
 // E0 Main extruder
 const int E0_enable = 26; // low == enabled
 const int E0_step = 34;
@@ -11,6 +31,13 @@ const int E0_dir = 43;
 const int E0_MS1 = 65;
 const int E0_MS2 = 66;
 const int E0_digipot_channel = 0;
+
+const float STEPS_PER_MM = 51.833 * EX_CORRECTION_FACTOR; // mm of extrusion * STEPS_PER_MM gives you the
+                                                        // the required number of steps to move that many mm.
+const int INTERRUPT_RATE = 10000; //Hz for interrupt rate
+// 1[mm/min] * STEPS_PER_MM[steps/min] * 1[min]/60[sec] * 1[sec]/INTERRUPT_RATE[interrupt] * 2^15[increments/step]
+const float VELOCITY_CONVERSION = STEPS_PER_MM * (2 << 15) / (60 * INTERRUPT_RATE); // [increments/interrupt] for determining velocity
+
 // const float E0_steps_per_mm = 38.197;
 const int E0_heater_pin = 9;
 const int E0_digipot_setting = 100;
@@ -21,16 +48,13 @@ const int BETA_NOZZLE = 4267; // Semitec 104GT-2 Thermistor
 const long R_ZERO = 100000; // Resistance at 25C
 const int E0_SAMPLE_TIME = 500; // milliseconds
 const int LED_PIN = 13;
-const int MINIMUM_VELOCITY = 10; // Based on testing the motor does not perfrom
-                                  // When moving slower than this
-const int MAX_VELOCITY = 10430; // 0.3183 increments/cycle * 2^15 = 10430
-const int MAX_ACCELERATION = 2; // From testing any value higher than 4 doesn't work reliably
-const float VELOCITY_CONVERSION = 2.0861*1.357;  // The desired speed in mm/min * EXTRDUER_CONVERSION
-                                          // puts us into increment math
-const int STEPS_PER_MM = 51.833; // mm of extrusion * STEPS_PER_MM gives you the
-                                // the required number of steps to move that many mm.
-const int PROGRAM_FEED_RATE = 37 * VELOCITY_CONVERSION;
-const int MANUAL_EX_RATE = 75 * VELOCITY_CONVERSION;
+const int MINIMUM_VELOCITY = 7 * VELOCITY_CONVERSION; // Based on testing the motor does not perfrom
+                                                      // well when moving slower than 7[mm/min]
+const int MAX_VELOCITY = 5000 * VELOCITY_CONVERSION; // 5000[mm/min] is zooming. Shouldn't need more than this
+const int MAX_ACCELERATION = 2; // An expereince driven max value. Relability goes down at 4
+
+const int PROGRAM_FEED_RATE = _EXT_FEED_RATE * VELOCITY_CONVERSION;
+const int MANUAL_EX_RATE = 75 * VELOCITY_CONVERSION; // 75[mm/min] has been a reliable number for me
 int E0_acceleration = 0;
 int E0_velocity = 0;
 signed int E0_position = 0;
@@ -57,8 +81,6 @@ Heater bed_heater(bed_heater_pin, bed_thermistor, BETA_BED, R_ZERO, bed_sample_t
 
 // Nozzle Heater
 Heater E0_heater(E0_heater_pin, E0_thermistor, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
-const int NOZZLE_TEMP = 220; // Hard coded temp in C for nozzle
-const int BED_TEMP = 70; // Hard coded temp in C for bed
 
 // betweenLayerRetract
 const int retract_dist = 3*STEPS_PER_MM; // retract this many steps between layers
@@ -160,7 +182,7 @@ void setup() {
   TCCR3B = 0;
   TCNT3 = 0;
 
-  OCR3A = 1600;     // compare match register 10kHz
+  OCR3A = 16000000/INTERRUPT_RATE; // 1600;     // compare match register 10kHz
   TCCR3B |= (1 << WGM12); // CTC mode
   TCCR3B |= (1 << CS10); // No prescaling
   TIMSK3 |= (1 << OCIE3A); // enable timer compare interrupt
@@ -337,7 +359,7 @@ void checkStates(){
 // TODO: Move this code into Heater modules
     if(heat_nozzle){
       E0_heater.setTargetTemp(NOZZLE_TEMP);
-      if(E0_heater.atTemp()){
+      if(E0_heater.getAtTemp()){
         digitalWrite(NOZZLE_AT_TEMP, HIGH);
       }
       else{
@@ -349,7 +371,7 @@ void checkStates(){
     }
     if(heat_bed){
       bed_heater.setTargetTemp(BED_TEMP);
-      if(bed_heater.atTemp()){
+      if(bed_heater.getAtTemp()){
         digitalWrite(BED_AT_TEMP, HIGH);
       }
       else{
@@ -391,17 +413,8 @@ void report(){
     Serial.println(E0_acceleration);
     Serial.print("Curr State: ");
     Serial.println(currState);
-    Serial.print("Noz Targ Temp: ");
-    Serial.print(E0_heater.getTargetTemp());
-    Serial.print("\tCurr Temp: ");
-    Serial.println(E0_heater.getCurrTemp());
-    Serial.print("Bed Targ Temp: ");
-    Serial.print(bed_heater.getTargetTemp());
-    Serial.print("\tCurr Temp: ");
-    Serial.print(bed_heater.getCurrTemp());
-    Serial.print("\tOutput: ");
-    Serial.println(bed_heater.getOutput());
-    Serial.println();
+    Serial.print(E0_heater.message());
+    Serial.println(bed_heater.message());
 
     last_report_time = now;
   }
