@@ -312,7 +312,7 @@ void checkStates(){
       target_velocity = MANUAL_EX_RATE;
       currState = "Manul Extrude";
     }
-    else if(S_auto && !(D2 || S_retract || S_program_extrude)){
+    else if(S_auto){ // && !(D2 || S_retract || S_program_extrude)){
       num_steps = 0;
       target_velocity = 0;
       currState = "Auto mode";
