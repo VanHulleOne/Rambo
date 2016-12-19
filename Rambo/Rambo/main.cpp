@@ -481,9 +481,12 @@ void setFans(){
   }
 }
 
+/**
+  Send a String based report to the serial monitor at the specified interval.
+*/
 void report(){
   unsigned long now = millis();
-  if(now - last_report_time > 1000){
+  if(now - last_report_time > REPORT_TIME){
     Serial.print("velocity target: ");
     Serial.print(target_velocity);
     Serial.print("\tE0_velocity: ");
@@ -499,6 +502,11 @@ void report(){
   }
 }
 
+/**
+  loop() runs full speed and calls each of the included options very often.
+  to prvent unneeded calculations methods called from within loop() should
+  conatain an elapsed time check.
+*/
 void loop() {
   E0_heater.compute();
   bed_heater.compute();
