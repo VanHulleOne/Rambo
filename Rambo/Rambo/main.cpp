@@ -357,15 +357,6 @@ ISR(TIMER3_COMPA_vect){
     num_steps += 1;
   }
 
-  if(target_velocity - E0_velocity > MAX_ACCELERATION){
-    E0_acceleration = MAX_ACCELERATION;
-  }
-  else if(E0_velocity - target_velocity > MAX_ACCELERATION){
-    E0_acceleration = -MAX_ACCELERATION;
-  }
-  else{
-    E0_acceleration = 0;
-  }
   interrupts();
 }
 
