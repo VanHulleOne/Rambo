@@ -360,7 +360,17 @@ ISR(TIMER3_COMPA_vect){
   interrupts();
 }
 
+/**
+  checkStates() runs the state machine. It reads all of the inputs from the robot,
+  runs the state machine logic, and then sets the outputs it controls.
+*/
 void checkStates(){
+  // Read all of the inputs first. This saves time since we don't have to read
+  // inputs multiple times and it helps prevent problems if inputs change in the middle
+  // of the logic run.
+  // We are using the internal pull-up resistors on the inputs which means they
+  // read HIGH when there is no input and LOW when there is an input. To help
+  // make the logic easier to read and write all of the inputs are inverted at read time.
   bool  auto_mode = !digitalRead(AUTO_MODE),
         man_extrude = !digitalRead(MAN_EXTRUDE),
         heat_bed = !digitalRead(HEAT_BED),
@@ -369,6 +379,8 @@ void checkStates(){
         between_layer_retract = !digitalRead(BETWEEN_LAYER_RETRACT),
         all_stop = !digitalRead(ALL_STOP);
 
+  // The logic for the state machine. Please see the state transition diagram for a
+  // clearer picture of how the machine should run.
   S0 = (S0 || D1 || D2 || D3 ||(S_wait && !auto_mode)) && !(S_manual_extrude || S_auto);
   S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
@@ -384,6 +396,7 @@ void checkStates(){
   D4 = (D4 || (S_program_extrude && !prog_feed)) && !S_auto;
   S_ALL_STOP = (S_ALL_STOP || all_stop) && !D3;
 
+  // To help prent coding logic error we handle the all stop state seperately
   if(S_ALL_STOP){
     S0  = 0;
     S_manual_extrude = 0;
@@ -401,6 +414,7 @@ void checkStates(){
     target_velocity = 0;
     currState = "ALL_STOP";
   }
+  // The rest of the outputs are handled inside this else block
   else{
     if(S0 && !(S_manual_extrude || S_auto)){
       target_velocity = 0;
@@ -410,6 +424,13 @@ void checkStates(){
       target_velocity = MANUAL_EX_RATE;
       currState = "Manul Extrude";
     }
+    // There was a problem where the BLR signal was shut off, primming extrusion started
+    // And then the BLR signal turned back on before num_steps >= RETRACT_DIST.
+    // When num_steps was finally equal to RETRACT_DIST the state machine would be in
+    // state S_auto and S_retract at the same time, causing this else if block to be skipped
+    // but we had not been in S_auto yet so num_steps was not getting reset to 0.
+    // So if we are in S_auto we make sure to enter here by not including any additional
+    // qualifiers.
     else if(S_auto){
       num_steps = 0;
       target_velocity = 0;
@@ -433,6 +454,8 @@ void checkStates(){
       currState = "Program Extrude";
     }
 // TODO: Move this code into Heater modules
+//    E0_heater.setTargetTemp(heat_nozzle ? NOZZLE_TEMP : 0);
+//    bed_heater.setTargetTemp(heat_bed ? BED_TEMP : 0);
     if(heat_nozzle){
       E0_heater.setTargetTemp(NOZZLE_TEMP);
     }
