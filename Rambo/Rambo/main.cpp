@@ -238,14 +238,13 @@ void setup() {
   SPI.end();
   digitalWrite(slave_select_pin, HIGH);
 
+  // Stepper driver pins
   digitalWrite(E0_MS1, LOW);
   digitalWrite(E0_MS2, LOW);
   digitalWrite(E0_dir, LOW);
 
   E0_heater.setTunings(50, 1, 9); // Initial Nozzle PID parameters
-  E0_heater.setTargetTemp(100);
   bed_heater.setTunings(50, 0.5, 9); // Initial Bed PID Values
-  bed_heater.setTargetTemp(35);
 
   // initialize timer 3 for the stepper motor interrupts
   noInterrupts();
@@ -266,21 +265,23 @@ void setup() {
 scaleMicroStep() checks the current commanded velocity and determines if it
 is within one of the available micro step ranges. Using micro steps enables
 better lower speed performance and more reliable accelerations from zero.
-The available micro steps are 1 (full speed) 2, 4, and 16.
+The available micro steps are 1 (full speed) 1/2, 1/4, and 1/16.
+
+Please see "A4982-Datasheet Stepper Driver" pg 6 for the microstep truth table.
 */
 void scaleMicroStep(){
-  int holdScale = MAX_VELOCITY/abs(E0_velocity);
-  if(holdScale >= 16){
+  int scale = MAX_VELOCITY/abs(E0_velocity);
+  if(scale >= 16){
     micro_step_scale = 16;
     digitalWrite(E0_MS1, HIGH);
     digitalWrite(E0_MS2, HIGH);
   }
-  else if (holdScale >= 4){
+  else if (scale >= 4){
     micro_step_scale = 4;
     digitalWrite(E0_MS1, LOW);
     digitalWrite(E0_MS2, HIGH);
   }
-  else if (holdScale >= 2){
+  else if (scale >= 2){
     micro_step_scale = 2;
     digitalWrite(E0_MS1, HIGH);
     digitalWrite(E0_MS2, LOW);
@@ -290,12 +291,16 @@ void scaleMicroStep(){
     digitalWrite(E0_MS1, LOW);
     digitalWrite(E0_MS2, LOW);
   }
-  delayMicroseconds(2);
+  delayMicroseconds(2); // a short delay to ensure the digitalWrite commands have been set
 }
 
+/**
+  This is the interrupt which drives the stepper motor.
+*/
 ISR(TIMER3_COMPA_vect){
   noInterrupts();
 
+  // Find the velocity error so we know if we should be adjusting the speed
   int velocity_error = target_velocity - E0_velocity;
 
   if(abs(target_velocity) < MINIMUM_VELOCITY){ // If we are not supposed to be moving
@@ -318,32 +323,40 @@ ISR(TIMER3_COMPA_vect){
 
   E0_velocity += E0_acceleration;
 
+  // Make sure we are not over the max velocity
   if(E0_velocity > MAX_VELOCITY){
     E0_velocity = MAX_VELOCITY;
   }
+  // Make sure we are not under the max negative velocity
   else if(E0_velocity < -MAX_VELOCITY){
     E0_velocity = -MAX_VELOCITY;
   }
-  if(E0_velocity < 0){ // Retract filament
-    digitalWrite(E0_dir, HIGH);
-  }
-  else{ // Extrude filament
-    digitalWrite(E0_dir, LOW);
-  }
 
+  // Set the stepper driver direction pin based on our current velocity
+  digitalWrite(E0_dir, E0_velocity > 0 ? E0_EXTRUDE : E0_RETRACT);
+
+  // The velocity is now set so check if  we need to adjust the micro step
   scaleMicroStep();
 
+  // If we are using micro steps then we need to scale our velocity to produce
+  // steps at an appropriately faster rate (although each step doesn't move as far)
   E0_position += E0_velocity*micro_step_scale;
 
-  if(SREG & 0b00001000){ // The third bit in SREG is the overflow flag. If we overflow
-                    // Then we know we should increment the stepper
+  if(SREG & 0b00001000){  // The third bit in SREG is the overflow flag. If we overflow
+                          // then we know we should increment the stepper
 
     E0_position -= 0x8000; // Subtract a 1 in 16bit math
+
+    // Trigger the step, wait to ensure it is read, and then shut off the trigger
     digitalWrite(E0_step, HIGH);
     delayMicroseconds(2);
     digitalWrite(E0_step, LOW);
+    // TODO: due to microstepping num_steps does not tally the number of full steps
+    //       Somehow that will have to be fixed.
+    // Increment the number of steps so it can be used with between layer retract
     num_steps += 1;
   }
+
   if(target_velocity - E0_velocity > MAX_ACCELERATION){
     E0_acceleration = MAX_ACCELERATION;
   }
