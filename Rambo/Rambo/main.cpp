@@ -453,29 +453,21 @@ void checkStates(){
       target_velocity = PROGRAM_FEED_RATE;
       currState = "Program Extrude";
     }
-// TODO: Move this code into Heater modules
-//    E0_heater.setTargetTemp(heat_nozzle ? NOZZLE_TEMP : 0);
-//    bed_heater.setTargetTemp(heat_bed ? BED_TEMP : 0);
-    if(heat_nozzle){
-      E0_heater.setTargetTemp(NOZZLE_TEMP);
-    }
-    else{
-      E0_heater.setTargetTemp(0);
-    }
-    if(heat_bed){
-      bed_heater.setTargetTemp(BED_TEMP);
-    }
-    else{
-      bed_heater.setTargetTemp(0);
-    }
+
+    // If we are not in ALL_STOP and the appropriate inputs are set high
+    // then set the temperatures.
+    E0_heater.setTargetTemp(heat_nozzle ? NOZZLE_TEMP : 0);
+    bed_heater.setTargetTemp(heat_bed ? BED_TEMP : 0);
+
   }
 }
 
+/**
+  setFans() turns on the fans if the nozzle temperature is above a specified
+  value. If only runs when the ellapsed time is greater than FAN_SAMPLE_TIME.
+*/
 void setFans(){
-  /*
-    Tests the current temperature of the nozzle and then turns on the
-    fans if they are above their temperatures.
-  */
+  // TODO: turn the test times into constants
   unsigned long now = millis();
   if(now - last_fan_time > FAN_SAMPLE_TIME){
     float currTemp = E0_heater.getCurrTemp();
