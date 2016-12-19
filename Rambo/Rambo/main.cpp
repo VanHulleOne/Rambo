@@ -5,7 +5,8 @@
 #include "Heater.h"
 
 /**
-  The following set of variables are set apart so they can be quickly and easily
+  ******************************************************************************************************
+  The following group of variables are set apart so they can be quickly and easily
   changed by the user. If you plan to change variables outside of this selection
   you must be sure you know what you're doing.
 */
@@ -14,16 +15,30 @@ const int _EXT_FEED_RATE = 37;  // The feed rate in mm/min at which you want
                                 // SR * layer_height * nozzle_dia * robot_travel_speed / filament_area
 
 const float EX_CORRECTION_FACTOR = 1; // If the length of filament being extruded
-                                      // is not correct you can adjust it here
+                                      // is not correct you can adjust it here.
+                                      // A percentage change of this number will
+                                      // create a coresponding percentage change
+                                      // to the extrusion distances and feedrates
 
-const int _RETRACT_DIST = 3; // [mm] to retract filament at layer changes are far moves
+const int _RETRACT_DIST = 3; // [mm] to retract filament at layer changes and long moves
 const int NOZZLE_TEMP = 220; // Temperature in degrees C for the nozzle
 const int BED_TEMP = 70; // Temperature in degrees C for the bed
 
 /**
   This is the end of the simple adjustable parameters. Any variable change
   beyond this point should only be done if you know what you are doing.
+
+  ******************************************************************************************************
 */
+
+/**
+  *******************************************************************************************************
+  In the next section are the pin assignments.
+  Please see "RAMBo-1.1B-User-Manual.pdf" Appendix B for a complete listing of
+  RAMBo pin assignments.
+*/
+
+const int LED_PIN = 13; // The on-board LED
 
 // Inputs from robot
 const int AUTO_MODE = 85,
@@ -44,60 +59,117 @@ const int E0_step = 34;
 const int E0_dir = 43;
 const int E0_MS1 = 65;
 const int E0_MS2 = 66;
-const int E0_digipot_channel = 0;
 
-const float STEPS_PER_MM = 51.833 * EX_CORRECTION_FACTOR; // mm of extrusion * STEPS_PER_MM gives you the
-                                                        // the required number of steps to move that many mm.
-const int INTERRUPT_RATE = 10000; //Hz for interrupt rate
-// 1[mm/min] * STEPS_PER_MM[steps/min] * 1[min]/60[sec] * 1[sec]/INTERRUPT_RATE[interrupt] * 2^15[increments/step] = [increments/interrupt]
-const float VELOCITY_CONVERSION = 5.662; //STEPS_PER_MM * (float) (2 << 15) / 60.0 / INTERRUPT_RATE; // [increments/interrupt] for determining velocity
-
-const int E0_heater_pin = 9;
-const int E0_digipot_setting = 100;
-const bool E0_EXTRUDE = 0;
-const bool E0_RETRACT = 1;
+// E0 heater
 const int E0_thermistor = 0;
-const int BETA_NOZZLE = 4267; // Semitec 104GT-2 Thermistor
-const long R_ZERO = 100000; // Resistance at 25C
-const int E0_SAMPLE_TIME = 500; // milliseconds
-const int LED_PIN = 13;
-const int MINIMUM_VELOCITY = 7 * VELOCITY_CONVERSION; // Based on testing the motor does not perfrom
-                                                      // well when moving slower than 7[mm/min]
-const int MAX_VELOCITY = 5000 * VELOCITY_CONVERSION; // 5000[mm/min] is zooming. Shouldn't need more than this
-const int MAX_ACCELERATION = 2; // An expereince driven max value. Relability goes down at 4
+const int E0_heater_pin = 9;
 
-const int PROGRAM_FEED_RATE = _EXT_FEED_RATE * VELOCITY_CONVERSION;
-const int MANUAL_EX_RATE = 75 * VELOCITY_CONVERSION; // 75[mm/min] has been a reliable number for me
-int E0_acceleration = 0;
-int E0_velocity = 0;
-signed int E0_position = 0;
-int target_velocity = 0;
-unsigned long motor_test_time = 0;
-int micro_step_scale = 1; // The micro step scale can be 1, 2, 4, or 16 based on
-                          // the stepper driver data sheet
+// Bed Heater
+const int bed_thermistor = 1;
+const int bed_heater_pin = 3;
 
 // Digipot
 const int slave_select_pin = 38;
+const int E0_digipot_channel = 0; // This is not a pin assignment but seemed to fit well here
 
 // Fans
 const int small_fan = 5;
 const int large_fan = 8;
-unsigned long last_fan_time = 0;
-const int FAN_SAMPLE_TIME = 2000; // milliseconds
 
-// Bed Heater
-const int bed_heater_pin = 3;
-const int BETA_BED = 3950;    // Not sure this is correct
-const int bed_thermistor = 1;
-const int bed_sample_time = 1000; // milliseconds
-Heater bed_heater(bed_heater_pin, bed_thermistor, BED_AT_TEMP, BETA_BED, R_ZERO, bed_sample_time, "Bed");
+/**
+  End of pin assignments.
+
+  *************************************************************************************************
+*/
+
+
+/**
+  *************************************************************************************************
+  The next section contains all of the constants and global variables used.
+*/
+
+// E0_Exruder Stepper Motor
+const float STEPS_PER_MM = 51.833 * EX_CORRECTION_FACTOR; // mm of extrusion * STEPS_PER_MM gives you the
+                                                          // the required number of steps to move that many mm.
+const int INTERRUPT_RATE = 10000;                          //Hz for interrupt rate
+
+/**
+  Here is the equation which should be used to determing the velocity conversion number:
+  Vel_Conv = 1[mm/min] * STEPS_PER_MM[steps/mm] * 1[min]/60[sec] * 1[sec]/INTERRUPT_RATE[interrupt] * 2^15[increments/step] = [increments/interrupt]
+*/
+// TODO: Turn the fromula into code so this value is not hard coded.
+const float VELOCITY_CONVERSION = 5.662;              // [min*increments/(mm*interrupt)] for determining velocity
+                                                      // This value x a velocity in mm/min puts the
+
+const int MINIMUM_VELOCITY = 7 * VELOCITY_CONVERSION; // [increments/interrupt]
+                                                      // Based on testing the motor does not perfrom
+                                                      // well when moving slower than 7[mm/min]
+
+const int MAX_VELOCITY = 5000 * VELOCITY_CONVERSION;  // [increments/interrupt]
+                                                      // 5000[mm/min] is zooming. Shouldn't need more than this
+
+const int MAX_ACCELERATION = 2;                       // [increments/interrupt^2]
+                                                      // An experience driven max value.
+                                                      // Too high of an acceleration causes the motor to lock up
+
+const int PROGRAM_FEED_RATE = _EXT_FEED_RATE * VELOCITY_CONVERSION; // [increments/interrupt]
+                                                                    // The speed the extruder should be moving
+                                                                    // when in program feed is activated
+
+const int MANUAL_EX_RATE = 75 * VELOCITY_CONVERSION;    // [increments/interrupt]
+                                                        // 75[mm/min] has been a reliable number for me
+
+
+int E0_acceleration = 0;            // [increments/interrupt^2] current extruder acceleration
+int E0_velocity = 0;                // [increments/interrupt] current extruder velocity
+signed int E0_position = 0;         // [increments] Used in the interrupt for controlling
+                                    // when to signal a step. A step is signaled when this value
+                                    // overflows.
+
+int target_velocity = 0;            // [increments/interrupt] The commanded extruder velocity
+int micro_step_scale = 1;           // The micro step scale can be 1, 2, 4, or 16 based on
+                                    // the stepper driver data sheet
+
+const int E0_digipot_setting = 100; // Controls the current sent to the stepper motor.
+                                    // The valid range is 0-255. Too high and the motor
+                                    // over heats. Too low and it doesn't have enough
+                                    // torque to turn.
+
+const bool E0_EXTRUDE = 0;          // Used to control the stepper motor driver direction pin
+const bool E0_RETRACT = 1;
+
+const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM; // [steps] retract this many steps between layers
+long num_steps = 0;           // Number of steps we have moved. Used for retracting between layers
 
 // Nozzle Heater
-Heater E0_heater(E0_heater_pin, E0_thermistor, NOZZLE_AT_TEMP, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
+const int BETA_NOZZLE = 4267;       // Semitec 104GT-2 Thermistor
+const long R_ZERO = 100000;         // Resistance at 25C
+const int E0_SAMPLE_TIME = 500;     // [milliseconds] How often the temperature of the Nozzle
+                                    // Should be sampled for its control loop
 
-// betweenLayerRetract
-const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM; // retract this many steps between layers
-long num_steps = 0;
+// Fans
+unsigned long last_fan_time = 0;    // Used for keeping track of when the fans are sampled
+const int FAN_SAMPLE_TIME = 2000;   // [milliseconds] How often the temperature should be checked
+                                    // for determining if the fans should be on
+
+// Bed Heater
+const int BETA_BED = 3950;        // Not sure this is correct. The beta value for the bed thermistor
+const int bed_sample_time = 1000; // [milliseconds] How often the temperature of the bed
+                                  // Should be sampled for its control loop
+
+// Report to Serial
+const int REPORT_TIME = 1000;       // [milliseconds] how often a report should be sent
+unsigned long last_report_time = 0; // Used for keeping track of when a report should be made
+/**
+  The end of the general global variables section.
+
+  ******************************************************************************************************
+*/
+
+/**
+  *******************************************************************************************************
+  The State Varaibles used in the state machine.
+*/
 bool  S_retract = 0,
       S_between_layer = 0,
       S_prime = 0,
@@ -111,12 +183,20 @@ bool  S_retract = 0,
       D2 = 0,
       D3 = 0,
       D4 = 0;
-int direction = 0;
 
-String currState = "";
+String currState = ""; // Stores the label of the current state
+/**
+  End of the state variables.
 
-// Report
-unsigned long last_report_time = 0;
+  *****************************************************************************************************
+*/
+
+// Initialize the bed heater object
+Heater bed_heater(bed_heater_pin, bed_thermistor, BED_AT_TEMP, BETA_BED, R_ZERO, bed_sample_time, "Bed");
+
+// Nozzle Heater
+Heater E0_heater(E0_heater_pin, E0_thermistor, NOZZLE_AT_TEMP, BETA_NOZZLE, R_ZERO, E0_SAMPLE_TIME, "E0");
+
 
 void setup() {
   // put your setup code here, to run once:
