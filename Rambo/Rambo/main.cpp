@@ -105,7 +105,7 @@ const int MINIMUM_VELOCITY = 7 * VELOCITY_CONVERSION; // [increments/interrupt]
                                                       // Based on testing the motor does not perfrom
                                                       // well when moving slower than 7[mm/min]
 
-const int MAX_VELOCITY = 5000 * VELOCITY_CONVERSION;  // [increments/interrupt]
+const int MAX_VELOCITY = 2500 * VELOCITY_CONVERSION;  // [increments/interrupt]
                                                       // 5000[mm/min] is zooming. Shouldn't need more than this
 
 const int MAX_ACCELERATION = 2;                       // [increments/interrupt^2]
@@ -138,7 +138,8 @@ const int E0_digipot_setting = 100; // Controls the current sent to the stepper 
 const bool E0_EXTRUDE = 0;          // Used to control the stepper motor driver direction pin
 const bool E0_RETRACT = 1;
 
-const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM; // [steps] retract this many steps between layers
+const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16; // [steps] retract this many steps between layers
+                                                        // the x16 is to account for micro steps
 long num_steps = 0;           // Number of steps we have moved. Used for retracting between layers
 
 // Nozzle Heater
@@ -351,10 +352,11 @@ ISR(TIMER3_COMPA_vect){
     digitalWrite(E0_step, HIGH);
     delayMicroseconds(2);
     digitalWrite(E0_step, LOW);
-    // TODO: due to microstepping num_steps does not tally the number of full steps
-    //       Somehow that will have to be fixed.
+
     // Increment the number of steps so it can be used with between layer retract
-    num_steps += 1;
+    // Incement by 16/micro_step_scale to account for the extra steps which happen
+    // when microstepping.
+    num_steps += 16/micro_step_scale;
   }
 
   interrupts();
