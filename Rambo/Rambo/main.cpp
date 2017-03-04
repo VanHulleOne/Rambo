@@ -389,9 +389,9 @@ void checkStates(){
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
   S_auto = (S_auto || D4 || (S0 && auto_mode && !between_layer_retract) || (S_prime && (num_steps >= PRIME_DIST)))
             && !(D2 || S_retract || S_program_extrude);
-  S_retract = (S_retract || (S_auto && between_layer_retract)) && !S_wait;
-  S_wait = (S_wait || (S_retract && (num_steps >= RETRACT_DIST))) && !(S_prime || S0);
   S_prime = (S_prime || (S_wait && !between_layer_retract)) && !S_auto;
+  S_wait = (S_wait || (S_retract && ((num_steps >= RETRACT_DIST) || !between_layer_retract))) && !(S_prime || S0);
+  S_retract = (S_retract || (S_auto && between_layer_retract)) && !S_wait;
   S_program_extrude = (S_program_extrude || (S_auto && prog_feed)) && !D4;
   D2 = (D2 ||(S_auto && !auto_mode)) && !S0;
   D3 = (D3 || (S_ALL_STOP && !(prog_feed || heat_bed || heat_nozzle
@@ -444,7 +444,7 @@ void checkStates(){
       currState = "Retract";
     }
     else if(S_wait && !(S_prime || S0)){
-      num_steps = 0;
+      num_steps = RETRACT_DIST - num_steps;
       target_velocity = 0;
       currState = "Wait";
     }
