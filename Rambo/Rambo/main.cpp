@@ -20,7 +20,7 @@ const float EX_CORRECTION_FACTOR = 1; // If the length of filament being extrude
                                       // create a coresponding percentage change
                                       // to the extrusion distances and feedrates
 
-const int _RETRACT_DIST = 3; // [mm] to retract filament at layer changes and long moves
+const int _RETRACT_DIST = 2; // [mm] to retract filament at layer changes and long moves
 const int NOZZLE_TEMP = 220; // Temperature in degrees C for the nozzle
 const int BED_TEMP = 70; // Temperature in degrees C for the bed
 
@@ -140,6 +140,7 @@ const bool E0_RETRACT = 1;
 
 const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16; // [steps] retract this many steps between layers
                                                         // the x16 is to account for micro steps
+const int PRIME_DIST = 0.9*RETRACT_DIST; //[steps] prime this amount after between layer retract
 long num_steps = 0;           // Number of steps we have moved. Used for retracting between layers
 
 // Nozzle Heater
@@ -386,7 +387,7 @@ void checkStates(){
   S0 = (S0 || D1 || D2 || D3 ||(S_wait && !auto_mode)) && !(S_manual_extrude || S_auto);
   S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
-  S_auto = (S_auto || D4 || (S0 && auto_mode && !between_layer_retract) || (S_prime && (num_steps >= RETRACT_DIST)))
+  S_auto = (S_auto || D4 || (S0 && auto_mode && !between_layer_retract) || (S_prime && (num_steps >= PRIME_DIST)))
             && !(D2 || S_retract || S_program_extrude);
   S_retract = (S_retract || (S_auto && between_layer_retract)) && !S_wait;
   S_wait = (S_wait || (S_retract && (num_steps >= RETRACT_DIST))) && !(S_prime || S0);
