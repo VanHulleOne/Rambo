@@ -1,5 +1,28 @@
+/**
+  Heater.cpp
+  @author: Luke Van Hulle
+
+  The Heater library contains the logic for running closed loop heater control.
+  It takes in all the necessary pins for reading the temperature from a thermistor
+  through a voltage divider and using PWM to control the heat level for the heater.
+  The set temperature for the heater can be adjusted on the fly.
+
+  TODO: Add logic for feed-forward temperature control
+*/
+
 #include "Heater.h"
 
+/**
+  The constructor for initializing a Heater object.
+
+  @param heatPin - the pin which turns on the heater
+  @param thermPin - thermistor pin
+  @param atTempPin - output which tells robot we are at the target temperature
+  @param beta     - the beta value for the thermistor
+  @param r_zero   - the R0 resistance of the thermistor
+  @param sample_time - How often the control law should be sampled
+  @param id           - String name of heater, used for serial printing
+*/
 Heater::Heater(int heatPin, int thermPin, int atTempPin, int beta, float r_zero, int sample_time, String id){
   HEAT_PIN = heatPin;
   THERM_PIN = thermPin;
@@ -10,7 +33,7 @@ Heater::Heater(int heatPin, int thermPin, int atTempPin, int beta, float r_zero,
   ID = id;
   OUT_MIN = 0; // PWM off
   OUT_MAX = 255; // PWM fully on
-  DIVIDE_RESIST = 4700;
+  DIVIDE_RESIST = 4700; // [Ohms] of the internal resitor used as a volatge dividor for the thermistor
   TO_VOLTS = 5.0/1024.0; // 5V board power / 1024 10bit range
 
   R_INF = R_ZERO*exp(1.0 * -BETA / 298.15); // 298K = 25C = reference temp
@@ -20,6 +43,9 @@ Heater::Heater(int heatPin, int thermPin, int atTempPin, int beta, float r_zero,
   lastTime = 0;
 }
 
+/**
+  compute() runs the control law for the heater
+*/
 void Heater::compute(){
   unsigned long now = millis();
   int timeChange = (now - lastTime);
