@@ -135,8 +135,8 @@ const int E0_digipot_setting = 100; // Controls the current sent to the stepper 
                                     // over heats. Too low and it doesn't have enough
                                     // torque to turn.
 
-const bool E0_EXTRUDE = 0;          // Used to control the stepper motor driver direction pin
-const bool E0_RETRACT = 1;
+const bool E0_EXTRUDE = 1;          // Used to control the stepper motor driver direction pin
+const bool E0_RETRACT = 0;
 
 const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16; // [steps] retract this many steps between layers
                                                         // the x16 is to account for micro steps
