@@ -45,7 +45,7 @@ const int AUTO_MODE = 85,
           MAN_EXTRUDE = 84,
           HEAT_BED = 83,
           HEAT_NOZZLE = 82,
-          PROG_FEED = 81,
+          PROG_FEED = 22,
           BETWEEN_LAYER_RETRACT = 80,
           ALL_STOP = 79;
 
