@@ -95,7 +95,7 @@ const int INTERRUPT_RATE = 10000;                          //Hz for interrupt ra
 
 /**
   Here is the equation which should be used to determing the velocity conversion number:
-  Vel_Conv = 1[mm/min] * STEPS_PER_MM[steps/mm] * 1[min]/60[sec] * 1[sec]/INTERRUPT_RATE[interrupt] * 2^15[increments/step] = [increments/interrupt]
+  Vel_Conv = 1[mm/min] * STEPS_PER_MM[steps/mm] * 1[min]/60[sec] * 1[sec]/INTERRUPT_RATE[interrupt] * 2^16[increments/step] = [increments/interrupt]
 */
 // TODO: Turn the fromula into code so this value is not hard coded.
 const float VELOCITY_CONVERSION = 5.662;              // [min*increments/(mm*interrupt)] for determining velocity
@@ -139,8 +139,8 @@ const bool E0_EXTRUDE = 1;          // Used to control the stepper motor driver 
 const bool E0_RETRACT = 0;
 
 const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16; // [steps] retract this many steps between layers
-                                                        // the x16 is to account for micro steps
-const int PRIME_DIST = 0.9*RETRACT_DIST; //[steps] prime this amount after between layer retract
+const float PRIME_DIST_FACTOR = 0.9; // prime this fraction of the retracted amount after between layer retract
+long prime_dist = 0;
 long num_steps = 0;           // Number of steps we have moved. Used for retracting between layers
 
 // Nozzle Heater
@@ -155,7 +155,7 @@ const int FAN_SAMPLE_TIME = 2000;   // [milliseconds] How often the temperature 
                                     // for determining if the fans should be on
 
 // Bed Heater
-const int BETA_BED = 3950;        // Not sure this is correct. The beta value for the bed thermistor
+const int BETA_BED = 3950;        // The beta value for the bed thermistor
 const int bed_sample_time = 1000; // [milliseconds] How often the temperature of the bed
                                   // Should be sampled for its control loop
 
@@ -387,11 +387,12 @@ void checkStates(){
   S0 = (S0 || D1 || D2 || D3 ||(S_wait && !auto_mode)) && !(S_manual_extrude || S_auto);
   S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
-  S_auto = (S_auto || D4 || (S0 && auto_mode && !between_layer_retract) || (S_prime && (num_steps >= PRIME_DIST)))
-            && !(D2 || S_retract || S_program_extrude);
   S_prime = (S_prime || (S_wait && !between_layer_retract)) && !S_auto;
-  S_wait = (S_wait || (S_retract && ((num_steps >= RETRACT_DIST) || !between_layer_retract))) && !(S_prime || S0);
+  S_wait = (S_wait || (S_retract && ((num_steps >= RETRACT_DIST) || !between_layer_retract)))
+            && !(S_prime || S0);
   S_retract = (S_retract || (S_auto && between_layer_retract)) && !S_wait;
+  S_auto = (S_auto || D4 || (S0 && auto_mode) || (S_prime && (num_steps >= prime_dist)))
+            && !(D2 || S_retract || S_program_extrude);
   S_program_extrude = (S_program_extrude || (S_auto && prog_feed)) && !D4;
   D2 = (D2 ||(S_auto && !auto_mode)) && !S0;
   D3 = (D3 || (S_ALL_STOP && !(prog_feed || heat_bed || heat_nozzle
@@ -420,10 +421,12 @@ void checkStates(){
   // The rest of the outputs are handled inside this else block
   else{
     if(S0 && !(S_manual_extrude || S_auto)){
+      digitalWrite(E0_enable, HIGH); // High means disable motor
       target_velocity = 0;
       currState = "S0";
     }
     else if(S_manual_extrude && !D1){
+      digitalWrite(E0_enable, LOW); // LOW means enable motor
       target_velocity = MANUAL_EX_RATE;
       currState = "Manul Extrude";
     }
@@ -434,18 +437,33 @@ void checkStates(){
     // but we had not been in S_auto yet so num_steps was not getting reset to 0.
     // So if we are in S_auto we make sure to enter here by not including any additional
     // qualifiers.
-    else if(S_auto){
+    else if(S_auto && !S_retract){
+      digitalWrite(E0_enable, LOW); // LOW means enable motor
       num_steps = 0;
       target_velocity = 0;
       currState = "Auto mode";
     }
     else if(S_retract && !S_wait){
+      if(num_steps == 0){
+        Serial.println("S_retract");
+      }
       target_velocity = -MAX_VELOCITY;
       currState = "Retract";
     }
     else if(S_wait && !(S_prime || S0)){
-      num_steps = RETRACT_DIST - num_steps;
       target_velocity = 0;
+      if(num_steps != 0){
+        Serial.print("wait1 num_steps: ");
+        Serial.print(num_steps);
+        prime_dist = PRIME_DIST_FACTOR * num_steps;
+        Serial.print("wait num_steps: ");
+        Serial.print(num_steps);
+        Serial.print(" prime_dist: ");
+        Serial.print(prime_dist);
+        Serial.println();
+        num_steps = 0;
+      }
+
       currState = "Wait";
     }
     else if(S_prime && !S_auto){
