@@ -392,7 +392,7 @@ void checkStates(){
   S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
   S_prime = (S_prime || (S_wait && !between_layer_retract)) && !S_auto;
-  S_wait = (S_wait || (S_retract && ((num_steps >= RETRACT_DIST) || !between_layer_retract)))
+  S_wait = (S_wait || (S_retract && ((num_steps >= RETRACT_DIST))))
             && !(S_prime || S0);
   S_retract = (S_retract || (S_auto && between_layer_retract)) && !S_wait;
   S_auto = (S_auto || D4 || (S0 && auto_mode) || (S_prime && (num_steps <= 0)))
