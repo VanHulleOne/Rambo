@@ -356,10 +356,10 @@ ISR(TIMER3_COMPA_vect){
     // Increment the number of steps so it can be used with between layer retract
     // Incement by 16/micro_step_scale to account for the extra steps which happen
     // when microstepping.
-    if S_retract{
+    if(S_retract){
       num_steps += 16/micro_step_scale;
     }
-    else if S_prime{
+    else if(S_prime){
       num_steps -= 16/micro_step_scale;
     }
   }
@@ -507,6 +507,8 @@ void report(){
     Serial.println(currState);
     Serial.print(E0_heater.message());
     Serial.println(bed_heater.message());
+    Serial.print("num_steps: ");
+    Serial.println(num_steps);
 
     last_report_time = now;
   }
