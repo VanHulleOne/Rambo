@@ -106,7 +106,7 @@ const int MINIMUM_VELOCITY = 7 * VELOCITY_CONVERSION; // [increments/interrupt]
                                                       // well when moving slower than 7[mm/min]
 
 const int MAX_VELOCITY = 2500 * VELOCITY_CONVERSION;  // [increments/interrupt]
-                                                      // 5000[mm/min] is zooming. Shouldn't need more than this
+                                                      // 2500[mm/min] is zooming. Shouldn't need more than this
 
 const int MAX_ACCELERATION = 2;                       // [increments/interrupt^2]
                                                       // An experience driven max value.
@@ -224,6 +224,11 @@ void setup() {
   pinMode(BED_AT_TEMP, OUTPUT);
   pinMode(NOZZLE_AT_TEMP, OUTPUT);
 
+
+  // testing
+  pinMode(14, OUTPUT); // Serial Ex 10 Used for testing timing
+  pinMode(15, OUTPUT); // Serial Ex 9 Used for testing timing
+
   pinMode(LED_PIN, OUTPUT);
 
   Serial.begin(9600);
@@ -300,7 +305,6 @@ void scaleMicroStep(){
 */
 ISR(TIMER3_COMPA_vect){
   noInterrupts();
-
   // Find the velocity error so we know if we should be adjusting the speed
   int velocity_error = target_velocity - E0_velocity;
 
@@ -358,12 +362,17 @@ ISR(TIMER3_COMPA_vect){
     // when microstepping.
     if(S_retract){
       num_steps += 16/micro_step_scale;
+      if(num_steps >= RETRACT_DIST){
+        target_velocity = 0;
+      }
     }
     else if(S_prime){
       num_steps -= 16/micro_step_scale;
+      if(num_steps <= 0){
+        target_velocity = 0;
+      }
     }
   }
-
   interrupts();
 }
 
@@ -507,10 +516,12 @@ void report(){
     Serial.println(currState);
     Serial.print(E0_heater.message());
     Serial.println(bed_heater.message());
-    Serial.print("num_steps: ");
-    Serial.println(num_steps);
+    // Serial.print("num_steps: ");
+    // Serial.println(num_steps);
+    // Serial.print("Micro Step: ");
+    // Serial.println(micro_step_scale);
+    // last_report_time = now;
 
-    last_report_time = now;
   }
 }
 
