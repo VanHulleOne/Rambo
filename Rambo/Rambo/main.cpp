@@ -140,7 +140,6 @@ const bool E0_RETRACT = 0;
 
 const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16; // [steps] retract this many steps between layers
 const float PRIME_DIST_FACTOR = 0.9; // prime this fraction of the retracted amount after between layer retract
-long prime_dist = 0;
 long num_steps = 0;           // Number of steps we have moved. Used for retracting between layers
 
 // Nozzle Heater
@@ -357,7 +356,12 @@ ISR(TIMER3_COMPA_vect){
     // Increment the number of steps so it can be used with between layer retract
     // Incement by 16/micro_step_scale to account for the extra steps which happen
     // when microstepping.
-    num_steps += 16/micro_step_scale;
+    if S_retract{
+      num_steps += 16/micro_step_scale;
+    }
+    else if S_prime{
+      num_steps -= 16/micro_step_scale;
+    }
   }
 
   interrupts();
@@ -391,7 +395,7 @@ void checkStates(){
   S_wait = (S_wait || (S_retract && ((num_steps >= RETRACT_DIST) || !between_layer_retract)))
             && !(S_prime || S0);
   S_retract = (S_retract || (S_auto && between_layer_retract)) && !S_wait;
-  S_auto = (S_auto || D4 || (S0 && auto_mode) || (S_prime && (num_steps >= prime_dist)))
+  S_auto = (S_auto || D4 || (S0 && auto_mode) || (S_prime && (num_steps <= 0)))
             && !(D2 || S_retract || S_program_extrude);
   S_program_extrude = (S_program_extrude || (S_auto && prog_feed)) && !D4;
   D2 = (D2 ||(S_auto && !auto_mode)) && !S0;
@@ -444,26 +448,11 @@ void checkStates(){
       currState = "Auto mode";
     }
     else if(S_retract && !S_wait){
-      if(num_steps == 0){
-        Serial.println("S_retract");
-      }
       target_velocity = -MAX_VELOCITY;
       currState = "Retract";
     }
     else if(S_wait && !(S_prime || S0)){
       target_velocity = 0;
-      if(num_steps != 0){
-        Serial.print("wait1 num_steps: ");
-        Serial.print(num_steps);
-        prime_dist = PRIME_DIST_FACTOR * num_steps;
-        Serial.print("wait num_steps: ");
-        Serial.print(num_steps);
-        Serial.print(" prime_dist: ");
-        Serial.print(prime_dist);
-        Serial.println();
-        num_steps = 0;
-      }
-
       currState = "Wait";
     }
     else if(S_prime && !S_auto){
