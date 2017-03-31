@@ -520,7 +520,7 @@ void report(){
     // Serial.println(num_steps);
     // Serial.print("Micro Step: ");
     // Serial.println(micro_step_scale);
-    // last_report_time = now;
+    last_report_time = now;
 
   }
 }
