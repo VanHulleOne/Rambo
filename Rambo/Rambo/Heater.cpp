@@ -109,7 +109,7 @@ bool Heater::getAtTemp(){
 }
 
 String Heater::message(){
-  String s = ID + " Targ Temo: ";
+  String s = ID + " Targ Temp: ";
   s += String(targetTemp);
   s += "\tCurr Temp: ";
   s += String(lastTemp);
