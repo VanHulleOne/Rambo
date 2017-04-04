@@ -10,9 +10,11 @@
   changed by the user. If you plan to change variables outside of this selection
   you must be sure you know what you're doing.
 */
-const int _EXT_FEED_RATE = 37;  // The feed rate in mm/min at which you want
+const int _EXT_FEED_RATE = 25;  // The feed rate in mm/min at which you want
                                 // the extruder to run.
                                 // SR * layer_height * nozzle_dia * robot_travel_speed / filament_area
+                                // 0.98*0.3*0.5*(30*60)/(pi*3^2/4)=37
+                                // 0.2 layer height = 25
 
 const float EX_CORRECTION_FACTOR = 1; // If the length of filament being extruded
                                       // is not correct you can adjust it here.
