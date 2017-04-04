@@ -495,8 +495,14 @@ void setFans(){
     if (currTemp > 50) {
       analogWrite(small_fan, 255);
     }
-    if(currTemp > 180){
+    else{
+      analogWrite(small_fan, 0);
+    }
+    if(currTemp > 100){
       analogWrite(large_fan, 255);
+    }
+    else{
+      analogWrite(large_fan, 0);
     }
     last_fan_time = now;
   }
