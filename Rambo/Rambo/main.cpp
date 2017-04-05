@@ -49,7 +49,8 @@ const int AUTO_MODE = 85,
           HEAT_NOZZLE = 82,
           PROG_FEED = 22,
           BETWEEN_LAYER_RETRACT = 80,
-          ALL_STOP = 79;
+          ALL_STOP = 79,
+          TRIPLE_RETRACT = 78;
 
 // Outputs to robot
 const int BED_AT_TEMP = 71,
@@ -140,7 +141,7 @@ const int E0_digipot_setting = 100; // Controls the current sent to the stepper 
 const bool E0_EXTRUDE = 1;          // Used to control the stepper motor driver direction pin
 const bool E0_RETRACT = 0;
 
-const int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16; // [steps] retract this many steps between layers
+int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16; // [steps] retract this many steps between layers
 const float PRIME_DIST_FACTOR = 0.9; // prime this fraction of the retracted amount after between layer retract
 long num_steps = 0;           // Number of steps we have moved. Used for retracting between layers
 
@@ -220,6 +221,7 @@ void setup() {
   pinMode(PROG_FEED, INPUT_PULLUP);
   pinMode(BETWEEN_LAYER_RETRACT, INPUT_PULLUP);
   pinMode(ALL_STOP, INPUT_PULLUP);
+  pinMode(TRIPLE_RETRACT, INPUT_PULLUP);
 
 
   // Outputs to robot
@@ -395,7 +397,15 @@ void checkStates(){
         heat_nozzle = !digitalRead(HEAT_NOZZLE),
         prog_feed = !digitalRead(PROG_FEED),
         between_layer_retract = !digitalRead(BETWEEN_LAYER_RETRACT),
-        all_stop = !digitalRead(ALL_STOP);
+        all_stop = !digitalRead(ALL_STOP),
+        triple_retract = !digitalRead(TRIPLE_RETRACT);
+
+  if(triple_retract){
+    RETRACT_DIST = _RETRACT_DIST*_RETRACT_DIST*STEPS_PER_MM*16*3;
+  }
+  else{
+    RETRACT_DIST = _RETRACT_DIST*_RETRACT_DIST*STEPS_PER_MM*16;
+  }
 
   // The logic for the state machine. Please see the state transition diagram for a
   // clearer picture of how the machine should run.
