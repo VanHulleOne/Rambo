@@ -142,7 +142,9 @@ const bool E0_EXTRUDE = 1;          // Used to control the stepper motor driver 
 const bool E0_RETRACT = 0;
 
 int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16; // [steps] retract this many steps between layers
+//NOT IMPLEMENTED AT THIS TIME//////////////////////////////////////////////////
 const float PRIME_DIST_FACTOR = 0.9; // prime this fraction of the retracted amount after between layer retract
+////////////////////////////////////////////////////////////////////////////////
 long num_steps = 0;           // Number of steps we have moved. Used for retracting between layers
 
 // Nozzle Heater
