@@ -10,7 +10,7 @@
   changed by the user. If you plan to change variables outside of this selection
   you must be sure you know what you're doing.
 */
-const int _EXT_FEED_RATE = 16;  // The feed rate in mm/min at which you want
+const int _EXT_FEED_RATE = 8;  // The feed rate in mm/min at which you want
                                 // the extruder to run.
                                 // SR * layer_height * nozzle_dia * robot_travel_speed / filament_area
                                 // 0.98*0.3*0.5*(30*60)/(pi*3^2/4)=37
@@ -22,7 +22,7 @@ const float EX_CORRECTION_FACTOR = 1; // If the length of filament being extrude
                                       // create a coresponding percentage change
                                       // to the extrusion distances and feedrates
 
-const float _RETRACT_DIST = .25; // [mm] to retract filament at layer changes and long moves
+const float _RETRACT_DIST = .35; // [mm] to retract filament at layer changes and long moves
 const int NOZZLE_TEMP = 220; // Temperature in degrees C for the nozzle
 const int BED_TEMP = 70; // Temperature in degrees C for the bed
 
@@ -529,9 +529,11 @@ void report(){
     Serial.print("velocity target: ");
     Serial.print(target_velocity);
     Serial.print("\tE0_velocity: ");
-    Serial.println(E0_velocity);
-    Serial.print("Accel: ");
+    Serial.print(E0_velocity);
+    Serial.print("\t\tAccel: ");
     Serial.println(E0_acceleration);
+    Serial.print("Feed Rate: ");
+    Serial.println(_EXT_FEED_RATE);
     Serial.print("Curr State: ");
     Serial.println(currState);
     Serial.print(E0_heater.message());
