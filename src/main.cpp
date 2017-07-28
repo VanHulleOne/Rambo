@@ -10,7 +10,9 @@
   changed by the user. If you plan to change variables outside of this selection
   you must be sure you know what you're doing.
 */
-const int _EXT_FEED_RATE = 8;  // The feed rate in mm/min at which you want
+
+int _EXT_FEED_RATE = 25;  // The feed rate in mm/min at which you want
+
                                 // the extruder to run.
                                 // SR * layer_height * nozzle_dia * robot_travel_speed / filament_area
                                 // 0.98*0.3*0.5*(30*60)/(pi*3^2/4)=37
@@ -115,7 +117,7 @@ const int MAX_ACCELERATION = 2;                       // [increments/interrupt^2
                                                       // An experience driven max value.
                                                       // Too high of an acceleration causes the motor to lock up
 
-const int PROGRAM_FEED_RATE = _EXT_FEED_RATE * VELOCITY_CONVERSION; // [increments/interrupt]
+int PROGRAM_FEED_RATE = _EXT_FEED_RATE * VELOCITY_CONVERSION; // [increments/interrupt]
                                                                     // The speed the extruder should be moving
                                                                     // when in program feed is activated
 
@@ -183,12 +185,14 @@ bool  S_retract = 0,
       S_auto = 0,
       S_manual_extrude = 0,
       S_program_extrude = 0,
+      S_feed_rate = 0,
       S_ALL_STOP = 0,
       S0 = 1,
       D1 = 0,
       D2 = 0,
       D3 = 0,
-      D4 = 0;
+      D4 = 0,
+      D5 = 0;
 
 String currState = ""; // Stores the label of the current state
 /**
@@ -411,9 +415,10 @@ void checkStates(){
 
   // The logic for the state machine. Please see the state transition diagram for a
   // clearer picture of how the machine should run.
-  S0 = (S0 || D1 || D2 || D3 ||(S_wait && !auto_mode)) && !(S_manual_extrude || S_auto);
+  S0 = (S0 || D1 || D2 || D3 || D5 ||(S_wait && !auto_mode)) && !(S_manual_extrude || S_auto || S_feed_rate);
   S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
+  S_feed_rate = (S_feed_rate || (S0 && between_layer_retract)) && !D5;
   S_prime = (S_prime || (S_wait && !between_layer_retract)) && !S_auto;
   S_wait = (S_wait || (S_retract && ((num_steps >= RETRACT_DIST))))
             && !(S_prime || S0);
@@ -425,6 +430,7 @@ void checkStates(){
   D3 = (D3 || (S_ALL_STOP && !(prog_feed || heat_bed || heat_nozzle
             || between_layer_retract || all_stop || man_extrude || auto_mode))) && !S0;
   D4 = (D4 || (S_program_extrude && !prog_feed)) && !S_auto;
+  D5 = (D5 || (S_feed_rate && !between_layer_retract)) && !S0;
   S_ALL_STOP = (S_ALL_STOP || all_stop) && !D3;
 
   // To help prent coding logic error we handle the all stop state seperately
@@ -433,6 +439,7 @@ void checkStates(){
     S_manual_extrude = 0;
     D1 = 0;
     S_auto = 0;
+    S_feed_rate = 0;
     S_program_extrude = 0;
     S_retract = 0;
     S_wait = 0;
@@ -440,6 +447,7 @@ void checkStates(){
     D2 = 0;
     D3 = 0;
     D4 = 0;
+    D5 = 0;
     E0_heater.setTargetTemp(0);
     bed_heater.setTargetTemp(0);
     target_velocity = 0;
@@ -447,7 +455,7 @@ void checkStates(){
   }
   // The rest of the outputs are handled inside this else block
   else{
-    if(S0 && !(S_manual_extrude || S_auto)){
+    if(S0 && !(S_manual_extrude || S_auto || S_feed_rate)){
       digitalWrite(E0_enable, HIGH); // High means disable motor
       target_velocity = 0;
       currState = "S0";
@@ -455,7 +463,13 @@ void checkStates(){
     else if(S_manual_extrude && !D1){
       digitalWrite(E0_enable, LOW); // LOW means enable motor
       target_velocity = MANUAL_EX_RATE;
-      currState = "Manul Extrude";
+      currState = "Manual Extrude";
+    }
+    else if(S_feed_rate && !D5){
+      unsigned long pulseTime = pulseIn(PROG_FEED, LOW, 20000000);
+      _EXT_FEED_RATE = round(pulseTime/100000);
+      PROGRAM_FEED_RATE = _EXT_FEED_RATE * VELOCITY_CONVERSION;
+      currState = "Feed Rate Input";
     }
     // There was a problem where the BLR signal was shut off, primming extrusion started
     // And then the BLR signal turned back on before num_steps >= RETRACT_DIST.
