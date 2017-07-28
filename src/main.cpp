@@ -10,7 +10,9 @@
   changed by the user. If you plan to change variables outside of this selection
   you must be sure you know what you're doing.
 */
+
 int _EXT_FEED_RATE = 25;  // The feed rate in mm/min at which you want
+
                                 // the extruder to run.
                                 // SR * layer_height * nozzle_dia * robot_travel_speed / filament_area
                                 // 0.98*0.3*0.5*(30*60)/(pi*3^2/4)=37
@@ -22,7 +24,7 @@ const float EX_CORRECTION_FACTOR = 1; // If the length of filament being extrude
                                       // create a coresponding percentage change
                                       // to the extrusion distances and feedrates
 
-const int _RETRACT_DIST = 2; // [mm] to retract filament at layer changes and long moves
+const float _RETRACT_DIST = .35; // [mm] to retract filament at layer changes and long moves
 const int NOZZLE_TEMP = 220; // Temperature in degrees C for the nozzle
 const int BED_TEMP = 70; // Temperature in degrees C for the bed
 
@@ -142,7 +144,9 @@ const bool E0_EXTRUDE = 1;          // Used to control the stepper motor driver 
 const bool E0_RETRACT = 0;
 
 int RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16; // [steps] retract this many steps between layers
+//NOT IMPLEMENTED AT THIS TIME//////////////////////////////////////////////////
 const float PRIME_DIST_FACTOR = 0.9; // prime this fraction of the retracted amount after between layer retract
+////////////////////////////////////////////////////////////////////////////////
 long num_steps = 0;           // Number of steps we have moved. Used for retracting between layers
 
 // Nozzle Heater
@@ -403,10 +407,10 @@ void checkStates(){
         triple_retract = !digitalRead(TRIPLE_RETRACT);
 
   if(triple_retract){
-    RETRACT_DIST = _RETRACT_DIST*_RETRACT_DIST*STEPS_PER_MM*16*3;
+    RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16*3;
   }
   else{
-    RETRACT_DIST = _RETRACT_DIST*_RETRACT_DIST*STEPS_PER_MM*16;
+    RETRACT_DIST = _RETRACT_DIST*STEPS_PER_MM*16;
   }
 
   // The logic for the state machine. Please see the state transition diagram for a
