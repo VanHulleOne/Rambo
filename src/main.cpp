@@ -103,7 +103,7 @@ const int INTERRUPT_RATE = 10000;                          //Hz for interrupt ra
   Vel_Conv = 1[mm/min] * STEPS_PER_MM[steps/mm] * 1[min]/60[sec] * 1[sec]/INTERRUPT_RATE[interrupt] * 2^16[increments/step] = [increments/interrupt]
 */
 // TODO: Turn the fromula into code so this value is not hard coded.
-const float VELOCITY_CONVERSION = 5.662;              // [min*increments/(mm*interrupt)] for determining velocity
+const float VELOCITY_CONVERSION = 2.831;              // [min*increments/(mm*interrupt)] for determining velocity
                                                       // This value x a velocity in mm/min puts the
 
 const int MINIMUM_VELOCITY = 7 * VELOCITY_CONVERSION; // [increments/interrupt]
