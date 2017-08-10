@@ -11,7 +11,7 @@
   you must be sure you know what you're doing.
 */
 
-int _EXT_FEED_RATE = 25;  // The feed rate in mm/min at which you want
+int _EXT_FEED_RATE = 38;  // The feed rate in mm/min at which you want
 
                                 // the extruder to run.
                                 // SR * layer_height * nozzle_dia * robot_travel_speed / filament_area
@@ -25,8 +25,8 @@ const float EX_CORRECTION_FACTOR = 1; // If the length of filament being extrude
                                       // to the extrusion distances and feedrates
 
 const float _RETRACT_DIST = .35; // [mm] to retract filament at layer changes and long moves
-const int NOZZLE_TEMP = 220; // Temperature in degrees C for the nozzle
-const int BED_TEMP = 70; // Temperature in degrees C for the bed
+int NOZZLE_TEMP = 220; // Temperature in degrees C for the nozzle
+int BED_TEMP = 70; // Temperature in degrees C for the bed
 
 /**
   This is the end of the simple adjustable parameters. Any variable change
@@ -185,7 +185,7 @@ bool  S_retract = 0,
       S_auto = 0,
       S_manual_extrude = 0,
       S_program_extrude = 0,
-      S_feed_rate = 0,
+      S_set_parameters = 0,
       S_ALL_STOP = 0,
       S0 = 1,
       D1 = 0,
@@ -415,10 +415,10 @@ void checkStates(){
 
   // The logic for the state machine. Please see the state transition diagram for a
   // clearer picture of how the machine should run.
-  S0 = (S0 || D1 || D2 || D3 || D5 ||(S_wait && !auto_mode)) && !(S_manual_extrude || S_auto || S_feed_rate);
+  S0 = (S0 || D1 || D2 || D3 || D5 ||(S_wait && !auto_mode)) && !(S_manual_extrude || S_auto || S_set_parameters);
   S_manual_extrude = (S_manual_extrude || (S0 && man_extrude)) && !D1;
   D1 = (D1 || (S_manual_extrude && !man_extrude)) && !S0;
-  S_feed_rate = (S_feed_rate || (S0 && between_layer_retract)) && !D5;
+  S_set_parameters = (S_set_parameters || (S0 && between_layer_retract)) && !D5;
   S_prime = (S_prime || (S_wait && !between_layer_retract)) && !S_auto;
   S_wait = (S_wait || (S_retract && ((num_steps >= RETRACT_DIST))))
             && !(S_prime || S0);
@@ -430,7 +430,7 @@ void checkStates(){
   D3 = (D3 || (S_ALL_STOP && !(prog_feed || heat_bed || heat_nozzle
             || between_layer_retract || all_stop || man_extrude || auto_mode))) && !S0;
   D4 = (D4 || (S_program_extrude && !prog_feed)) && !S_auto;
-  D5 = (D5 || (S_feed_rate && !between_layer_retract)) && !S0;
+  D5 = (D5 || (S_set_parameters && !between_layer_retract)) && !S0;
   S_ALL_STOP = (S_ALL_STOP || all_stop) && !D3;
 
   // To help prent coding logic error we handle the all stop state seperately
@@ -439,7 +439,7 @@ void checkStates(){
     S_manual_extrude = 0;
     D1 = 0;
     S_auto = 0;
-    S_feed_rate = 0;
+    S_set_parameters = 0;
     S_program_extrude = 0;
     S_retract = 0;
     S_wait = 0;
@@ -455,7 +455,7 @@ void checkStates(){
   }
   // The rest of the outputs are handled inside this else block
   else{
-    if(S0 && !(S_manual_extrude || S_auto || S_feed_rate)){
+    if(S0 && !(S_manual_extrude || S_auto || S_set_parameters)){
       digitalWrite(E0_enable, HIGH); // High means disable motor
       target_velocity = 0;
       currState = "S0";
@@ -465,11 +465,33 @@ void checkStates(){
       target_velocity = MANUAL_EX_RATE;
       currState = "Manual Extrude";
     }
-    else if(S_feed_rate && !D5){
-      unsigned long pulseTime = pulseIn(PROG_FEED, LOW, 20000000);
-      _EXT_FEED_RATE = round(pulseTime/100000);
-      PROGRAM_FEED_RATE = _EXT_FEED_RATE * VELOCITY_CONVERSION;
-      currState = "Feed Rate Input";
+    else if(S_set_parameters && !D5){
+
+      bool setFeedRate = (0 == digitalRead(AUTO_MODE));
+      bool setBedTemp =  (0 == digitalRead(TRIPLE_RETRACT));
+      bool setNozTemp = (0 == digitalRead(MAN_EXTRUDE));
+
+      if(setFeedRate){
+        unsigned long feedPulseTime = pulseIn(PROG_FEED, LOW, 20000000);
+        _EXT_FEED_RATE = round(feedPulseTime/100000);
+        PROGRAM_FEED_RATE = _EXT_FEED_RATE * VELOCITY_CONVERSION;
+        Serial.println(feedPulseTime);
+        delay(1000);
+      }
+      if(setBedTemp){
+        unsigned long bedPulseTime = pulseIn(PROG_FEED, LOW, 20000000);
+        BED_TEMP = round((bedPulseTime/100000) * 5);
+        Serial.println(bedPulseTime);
+        delay(1000);
+      }
+      if(setNozTemp){
+        unsigned long nozPulseTime = pulseIn(PROG_FEED, LOW, 20000000);
+        NOZZLE_TEMP = round(((nozPulseTime/100000) * 8) + 140);
+        Serial.println(nozPulseTime);
+        delay(1000);
+      }
+
+      currState = "Setting Print Parameters";
     }
     // There was a problem where the BLR signal was shut off, primming extrusion started
     // And then the BLR signal turned back on before num_steps >= RETRACT_DIST.
