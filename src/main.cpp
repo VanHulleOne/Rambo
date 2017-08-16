@@ -467,9 +467,9 @@ void checkStates(){
     }
     else if(S_set_parameters && !D5){
 
-      bool setFeedRate = (0 == digitalRead(AUTO_MODE));
-      bool setBedTemp =  (0 == digitalRead(TRIPLE_RETRACT));
-      bool setNozTemp = (0 == digitalRead(MAN_EXTRUDE));
+      bool setFeedRate = auto_mode;
+      bool setBedTemp =  triple_retract;
+      bool setNozTemp = man_extrude;
 
       Serial.print("Feed Rate: ");
       Serial.println(setFeedRate);
