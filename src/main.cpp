@@ -471,24 +471,33 @@ void checkStates(){
       bool setBedTemp =  (0 == digitalRead(TRIPLE_RETRACT));
       bool setNozTemp = (0 == digitalRead(MAN_EXTRUDE));
 
+      Serial.print("Feed Rate: ");
+      Serial.println(setFeedRate);
+      Serial.print("Bed Temp: ");
+      Serial.println(setBedTemp);
+      Serial.print("Nozzle Temp: ");
+      Serial.println(setNozTemp);
+
+
+
       if(setFeedRate){
         unsigned long feedPulseTime = pulseIn(PROG_FEED, LOW, 20000000);
         _EXT_FEED_RATE = round(feedPulseTime/100000);
         PROGRAM_FEED_RATE = _EXT_FEED_RATE * VELOCITY_CONVERSION;
+        Serial.print("Feed Rate: ");
         Serial.println(feedPulseTime);
-        delay(1000);
       }
       if(setBedTemp){
         unsigned long bedPulseTime = pulseIn(PROG_FEED, LOW, 20000000);
         BED_TEMP = round((bedPulseTime/100000) * 5);
+        Serial.print("Bed Temp: ");
         Serial.println(bedPulseTime);
-        delay(1000);
       }
       if(setNozTemp){
         unsigned long nozPulseTime = pulseIn(PROG_FEED, LOW, 20000000);
         NOZZLE_TEMP = round(((nozPulseTime/100000) * 8) + 140);
+        Serial.print("Nozzle Temp: ");
         Serial.println(nozPulseTime);
-        delay(1000);
       }
 
       currState = "Setting Print Parameters";
